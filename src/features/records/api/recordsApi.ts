@@ -1,6 +1,7 @@
 import type { ApiRequestOptions } from "../../../shared/api/http";
 import type {
   CreateRecordPayload,
+  DailyTrackNumbersResponse,
   ListRecordsResponse,
   PaymentFilter,
   RecordEntity,
@@ -32,6 +33,16 @@ export function listRecordsRequest(
   }
 
   return api<ListRecordsResponse>(`/records?${params.toString()}`);
+}
+
+export function listDailyTrackNumbersRequest(
+  api: ApiClient,
+  date: string,
+): Promise<DailyTrackNumbersResponse> {
+  const params = new URLSearchParams({ date });
+  return api<DailyTrackNumbersResponse>(
+    `/records/track-numbers?${params.toString()}`,
+  );
 }
 
 export function createRecordRequest(

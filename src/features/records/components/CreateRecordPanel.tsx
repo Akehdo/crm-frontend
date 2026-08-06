@@ -1,6 +1,11 @@
-import { FilePlus2, Loader2, Save } from "lucide-react";
+import { Calculator, FilePlus2, Loader2, Save } from "lucide-react";
 import { FormEvent } from "react";
 import { PanelHeader } from "../../../shared/components/PanelHeader";
+import {
+  calculateTotalPrice,
+  formatRecordPrice,
+  useEnterNavigation,
+} from "../lib/recordForm";
 import { CreateRecordDraft, paymentTypes } from "../types";
 
 type CreateRecordPanelProps = {
@@ -16,6 +21,9 @@ export function CreateRecordPanel({
   onDraftChange,
   onSubmit,
 }: CreateRecordPanelProps): JSX.Element {
+  const totalPrice = calculateTotalPrice(draft.weight, draft.price);
+  const enterNavigation = useEnterNavigation();
+
   return (
     <div className="panel tools-panel">
       <PanelHeader icon={<FilePlus2 size={18} />} title="Создать запись" />
@@ -24,6 +32,7 @@ export function CreateRecordPanel({
           <label>
             Код клиента
             <input
+              {...enterNavigation<HTMLInputElement>(0)}
               min="1"
               type="number"
               value={draft.clientCode}
@@ -35,6 +44,7 @@ export function CreateRecordPanel({
           <label>
             Вес
             <input
+              {...enterNavigation<HTMLInputElement>(1)}
               min="0.01"
               step="0.01"
               type="number"
@@ -45,8 +55,9 @@ export function CreateRecordPanel({
             />
           </label>
           <label>
-            Цена
+            Цена за единицу веса
             <input
+              {...enterNavigation<HTMLInputElement>(2)}
               min="0.01"
               step="0.01"
               type="number"
@@ -54,6 +65,11 @@ export function CreateRecordPanel({
               onChange={(event) => onDraftChange({ price: event.target.value })}
             />
           </label>
+          <div className="record-total" aria-live="polite">
+            <Calculator aria-hidden="true" size={24} />
+            <span>Итоговая цена</span>
+            <strong>{formatRecordPrice(totalPrice)}</strong>
+          </div>
         </div>
 
         <fieldset className="payment-fields">
@@ -63,6 +79,7 @@ export function CreateRecordPanel({
               <label key={paymentType.value}>
                 {paymentType.label}
                 <input
+                  {...enterNavigation<HTMLInputElement>(3 + paymentTypes.indexOf(paymentType))}
                   min="0.01"
                   step="0.01"
                   type="number"
@@ -84,6 +101,7 @@ export function CreateRecordPanel({
         <label>
           Трек-номера
           <textarea
+            {...enterNavigation<HTMLTextAreaElement>(6)}
             rows={7}
             value={draft.trackNumbers}
             onChange={(event) =>
@@ -93,7 +111,12 @@ export function CreateRecordPanel({
           />
         </label>
 
-        <button className="primary-button" disabled={saving} type="submit">
+        <button
+          {...enterNavigation<HTMLButtonElement>(7)}
+          className="primary-button"
+          disabled={saving}
+          type="submit"
+        >
           {saving ? <Loader2 className="spin" size={18} /> : <Save size={18} />}
           Сохранить
         </button>

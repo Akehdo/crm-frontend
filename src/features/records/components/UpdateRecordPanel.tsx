@@ -1,6 +1,11 @@
-import { FilePenLine, Loader2, Save } from "lucide-react";
+import { Calculator, FilePenLine, Loader2, Save } from "lucide-react";
 import type { FormEvent } from "react";
 import { PanelHeader } from "../../../shared/components/PanelHeader";
+import {
+  calculateTotalPrice,
+  formatRecordPrice,
+  useEnterNavigation,
+} from "../lib/recordForm";
 import { paymentTypes, UpdateRecordDraft } from "../types";
 
 type UpdateRecordPanelProps = {
@@ -16,6 +21,9 @@ export function UpdateRecordPanel({
   onDraftChange,
   onSubmit,
 }: UpdateRecordPanelProps): JSX.Element {
+  const totalPrice = calculateTotalPrice(draft.weight, draft.price);
+  const enterNavigation = useEnterNavigation();
+
   return (
     <div className="panel tools-panel">
       <PanelHeader icon={<FilePenLine size={18} />} title="Обновить запись" />
@@ -23,6 +31,7 @@ export function UpdateRecordPanel({
         <label>
           ID записи
           <input
+            {...enterNavigation<HTMLInputElement>(0)}
             value={draft.id}
             onChange={(event) => onDraftChange({ id: event.target.value })}
             placeholder="UUID записи"
@@ -33,6 +42,7 @@ export function UpdateRecordPanel({
           <label>
             Код клиента
             <input
+              {...enterNavigation<HTMLInputElement>(1)}
               min="1"
               type="number"
               value={draft.clientCode}
@@ -44,6 +54,7 @@ export function UpdateRecordPanel({
           <label>
             Вес
             <input
+              {...enterNavigation<HTMLInputElement>(2)}
               min="0.01"
               step="0.01"
               type="number"
@@ -54,8 +65,9 @@ export function UpdateRecordPanel({
             />
           </label>
           <label>
-            Цена
+            Цена за единицу веса
             <input
+              {...enterNavigation<HTMLInputElement>(3)}
               min="0.01"
               step="0.01"
               type="number"
@@ -63,6 +75,11 @@ export function UpdateRecordPanel({
               onChange={(event) => onDraftChange({ price: event.target.value })}
             />
           </label>
+          <div className="record-total" aria-live="polite">
+            <Calculator aria-hidden="true" size={24} />
+            <span>Итоговая цена</span>
+            <strong>{formatRecordPrice(totalPrice)}</strong>
+          </div>
         </div>
 
         <fieldset className="payment-fields">
@@ -72,6 +89,7 @@ export function UpdateRecordPanel({
               <label key={paymentType.value}>
                 {paymentType.label}
                 <input
+                  {...enterNavigation<HTMLInputElement>(4 + paymentTypes.indexOf(paymentType))}
                   min="0.01"
                   step="0.01"
                   type="number"
@@ -93,6 +111,7 @@ export function UpdateRecordPanel({
         <label>
           Трек-номера
           <textarea
+            {...enterNavigation<HTMLTextAreaElement>(7)}
             rows={7}
             value={draft.trackNumbers}
             onChange={(event) =>
@@ -102,7 +121,12 @@ export function UpdateRecordPanel({
           />
         </label>
 
-        <button className="secondary-button" disabled={saving} type="submit">
+        <button
+          {...enterNavigation<HTMLButtonElement>(8)}
+          className="secondary-button"
+          disabled={saving}
+          type="submit"
+        >
           {saving ? <Loader2 className="spin" size={18} /> : <Save size={18} />}
           Обновить
         </button>

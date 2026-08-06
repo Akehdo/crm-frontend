@@ -43,6 +43,11 @@ export type ListRecordsResponse = {
   meta?: ListMeta;
 };
 
+export type DailyTrackNumbersResponse = {
+  date: string;
+  track_numbers: string[];
+};
+
 export type CreateRecordPayload = {
   client_code: number;
   track_numbers: string[];

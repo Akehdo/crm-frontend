@@ -6,10 +6,15 @@ import { readableError } from "../../../shared/utils/errors";
 import {
   createRecordRequest,
   deleteRecordRequest,
+  listDailyTrackNumbersRequest,
   listRecordsRequest,
   updateRecordRequest,
 } from "../api/recordsApi";
 import { parseRecordTracks } from "../lib/trackNumbers";
+import {
+  calculateTotalPrice,
+  totalPriceToUnitPrice,
+} from "../lib/recordForm";
 import type {
   CreateRecordDraft,
   CreateRecordPayload,
@@ -58,6 +63,11 @@ export function useRecordsDashboard() {
   const [saving, setSaving] = useState<RecordSavingState>("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [dailyTracksOpen, setDailyTracksOpen] = useState(false);
+  const [dailyTrackDate, setDailyTrackDate] = useState(currentLocalDate);
+  const [dailyTrackNumbers, setDailyTrackNumbers] = useState<string[]>([]);
+  const [dailyTracksLoading, setDailyTracksLoading] = useState(false);
+  const [dailyTracksError, setDailyTracksError] = useState("");
   const normalizedCreateDraft = normalizeCreateRecordDraft(createDraft);
   const normalizedUpdateDraft = normalizeUpdateRecordDraft(updateDraft);
 
@@ -96,6 +106,32 @@ export function useRecordsDashboard() {
   useEffect(() => {
     loadRecords();
   }, [loadRecords]);
+
+  const loadDailyTrackNumbers = async (date = dailyTrackDate) => {
+    setDailyTracksLoading(true);
+    setDailyTracksError("");
+
+    try {
+      const payload = await listDailyTrackNumbersRequest(api, date);
+      setDailyTrackNumbers(payload.track_numbers ?? []);
+    } catch (err) {
+      setDailyTrackNumbers([]);
+      setDailyTracksError(readableError(err));
+    } finally {
+      setDailyTracksLoading(false);
+    }
+  };
+
+  const openDailyTracks = async () => {
+    setDailyTracksOpen(true);
+    await loadDailyTrackNumbers();
+  };
+
+  const changeDailyTrackDate = (date: string) => {
+    setDailyTrackDate(date);
+    setDailyTrackNumbers([]);
+    setDailyTracksError("");
+  };
 
   const createRecord = async (event?: FormEvent<HTMLFormElement>) => {
     event?.preventDefault();
@@ -163,7 +199,7 @@ export function useRecordsDashboard() {
       clientCode: String(record.client_code),
       trackNumbers: record.track_numbers.join("\n"),
       weight: String(record.weight),
-      price: String(record.price),
+      price: totalPriceToUnitPrice(record.price, record.weight),
       payments: paymentsToDraft(record.payments, record.price, record.payment_type),
     });
     setError("");
@@ -200,9 +236,16 @@ export function useRecordsDashboard() {
     changeUpdateDraft,
     createDraft: normalizedCreateDraft,
     createRecord,
+    changeDailyTrackDate,
+    dailyTrackDate,
+    dailyTrackNumbers,
+    dailyTracksError,
+    dailyTracksLoading,
+    dailyTracksOpen,
     error,
     filter,
     loading,
+    loadDailyTrackNumbers,
     meta,
     notice,
     page,
@@ -210,11 +253,21 @@ export function useRecordsDashboard() {
     saving,
     deleteRecord,
     selectRecordForUpdate,
+    setDailyTracksOpen,
     setFilter,
     setPage,
     updateDraft: normalizedUpdateDraft,
     updateRecord,
+    openDailyTracks,
   };
+}
+
+function currentLocalDate(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function normalizeCreateRecordDraft(draft: CreateRecordDraft): CreateRecordDraft {
@@ -272,7 +325,8 @@ function buildCreatePayload(
 ): PayloadResult<CreateRecordPayload> {
   const clientCode = Number(draft.clientCode);
   const weight = Number(draft.weight);
-  const price = Number(draft.price);
+  const unitPrice = Number(draft.price);
+  const totalPrice = calculateTotalPrice(draft.weight, draft.price);
   const trackNumbers = parseRecordTracks(draft.trackNumbers);
   const payments = buildPaymentsPayload(draft.payments);
 
@@ -288,16 +342,20 @@ function buildCreatePayload(
     return { ok: false, error: "Укажите вес больше нуля." };
   }
 
-  if (!Number.isFinite(price) || price <= 0) {
-    return { ok: false, error: "Укажите цену больше нуля." };
+  if (!Number.isFinite(unitPrice) || unitPrice <= 0) {
+    return { ok: false, error: "Укажите цену за единицу веса больше нуля." };
+  }
+
+  if (totalPrice === null || totalPrice <= 0) {
+    return { ok: false, error: "Итоговая цена должна быть больше нуля." };
   }
 
   if (payments.length === 0) {
     return { ok: false, error: "Укажите хотя бы одну оплату." };
   }
 
-  if (!isSameAmount(paymentsTotal(payments), price)) {
-    return { ok: false, error: "Сумма оплат должна совпадать с ценой." };
+  if (!isSameAmount(paymentsTotal(payments), totalPrice)) {
+    return { ok: false, error: "Сумма оплат должна совпадать с итоговой ценой." };
   }
 
   return {
@@ -306,7 +364,7 @@ function buildCreatePayload(
       client_code: clientCode,
       track_numbers: trackNumbers,
       weight,
-      price,
+      price: totalPrice,
       payments,
     },
   };
@@ -345,23 +403,28 @@ function buildUpdatePayload(
   }
 
   if (draft.price.trim()) {
-    const price = Number(draft.price);
-    if (!Number.isFinite(price) || price <= 0) {
-      return { ok: false, error: "Цена должна быть больше нуля." };
+    const unitPrice = Number(draft.price);
+    if (!Number.isFinite(unitPrice) || unitPrice <= 0) {
+      return { ok: false, error: "Цена за единицу веса должна быть больше нуля." };
     }
 
-    payload.price = price;
+    const totalPrice = calculateTotalPrice(draft.weight, draft.price);
+    if (totalPrice === null || totalPrice <= 0) {
+      return { ok: false, error: "Укажите вес для расчёта итоговой цены." };
+    }
+
+    payload.price = totalPrice;
   }
 
   const payments = buildPaymentsPayload(draft.payments);
   if (payments.length > 0) {
-    const price = payload.price ?? Number(draft.price);
-    if (!Number.isFinite(price) || price <= 0) {
-      return { ok: false, error: "Укажите цену для обновления оплат." };
+    const price = payload.price;
+    if (price === undefined || !Number.isFinite(price) || price <= 0) {
+      return { ok: false, error: "Укажите вес и цену для обновления оплат." };
     }
 
     if (!isSameAmount(paymentsTotal(payments), price)) {
-      return { ok: false, error: "Сумма оплат должна совпадать с ценой." };
+      return { ok: false, error: "Сумма оплат должна совпадать с итоговой ценой." };
     }
 
     payload.payments = payments;
