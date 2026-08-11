@@ -42,34 +42,22 @@ docker build -t crm-frontend .
 docker run --rm -p 3000:80 crm-frontend
 ```
 
-When using the compose file from `../crm-backend`, frontend is available at:
+The production Compose stack is managed from `../crm-backend`:
 
 ```bash
 cd ../crm-backend
-cp .env.example .env
-docker compose --env-file .env -f docker-compose.yml -f docker-compose.dev.yml up --build
+cp .env.production.example .env
+# Fill all empty values in .env first.
+docker compose config --quiet
+docker compose up -d --build --remove-orphans
 ```
 
 ```text
-http://localhost:5173
+http://SERVER_IP
 ```
 
-## Docker dev mode
-
-For realtime frontend debugging with Vite HMR inside Docker:
-
-```bash
-cd ../crm-backend
-docker compose --env-file .env -f docker-compose.yml -f docker-compose.dev.yml up --build frontend
-```
-
-Open:
-
-```text
-http://localhost:5173
-```
-
-The dev container mounts `../crm-frontend` into `/app`, keeps `node_modules` in a Docker volume, and proxies `/api` to the backend container.
+nginx serves the built static assets on port 80 and proxies `/api` to the backend container.
+Postgres, Redis, and the backend do not publish host ports in the production stack.
 
 ## Auth refresh
 
