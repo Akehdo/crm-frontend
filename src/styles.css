@@ -700,6 +700,16 @@ textarea:focus {
   gap: 10px;
 }
 
+.cash-balances {
+  display: grid;
+  gap: 10px;
+}
+
+.cash-balances h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
 .cash-date-filters {
   display: grid;
   grid-template-columns: repeat(2, minmax(160px, 220px)) auto;

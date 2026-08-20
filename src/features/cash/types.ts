@@ -16,6 +16,7 @@ export type CashTransaction = {
 
 export type CashSummary = {
   balance: number;
+  balances: Record<PaymentType, number>;
   expense: number;
   income: number;
 };
@@ -35,6 +36,23 @@ export type ListTransactionsResponse = {
 
 export type PaymentFilter = PaymentType | "all";
 
+export type CashTransferDraft = {
+  amount: string;
+  fromPaymentType: PaymentType;
+  toPaymentType: PaymentType;
+};
+
+export type CashTransferPayload = {
+  amount: number;
+  from_payment_type: PaymentType;
+  to_payment_type: PaymentType;
+};
+
+export type CashTransferResponse = {
+  expense: CashTransaction;
+  income: CashTransaction;
+};
+
 export const transactionTypeLabels: Record<TransactionType, string> = {
   EXPENSE: "Расход",
   INCOME: "Доход",
@@ -49,6 +67,17 @@ export const transactionTypeOptions = Object.entries(transactionTypeLabels).map(
 
 export const initialCashSummary: CashSummary = {
   balance: 0,
+  balances: {
+    card: 0,
+    cash: 0,
+    kaspiQR: 0,
+  },
   expense: 0,
   income: 0,
+};
+
+export const initialCashTransferDraft: CashTransferDraft = {
+  amount: "",
+  fromPaymentType: "cash",
+  toPaymentType: "kaspiQR",
 };

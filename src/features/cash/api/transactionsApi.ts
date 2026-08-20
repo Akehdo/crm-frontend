@@ -1,5 +1,7 @@
 import type { ApiRequestOptions } from "../../../shared/api/http";
 import type {
+  CashTransferPayload,
+  CashTransferResponse,
   ListTransactionsResponse,
   PaymentFilter,
   TransactionTypeFilter,
@@ -52,4 +54,14 @@ export function listTransactionsRequest(
   }
 
   return api<ListTransactionsResponse>(`/transactions?${params.toString()}`);
+}
+
+export function createCashTransferRequest(
+  api: ApiClient,
+  payload: CashTransferPayload,
+): Promise<CashTransferResponse> {
+  return api<CashTransferResponse>("/transactions/transfer", {
+    body: payload,
+    method: "POST",
+  });
 }

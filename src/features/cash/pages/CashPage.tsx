@@ -11,6 +11,7 @@ import { PanelHeader } from "../../../shared/components/PanelHeader";
 import { MetricCard } from "../../../shared/components/MetricCard";
 import { formatDate } from "../../../shared/utils/date";
 import { paymentTypeLabels, paymentTypes } from "../../records/types";
+import { CashTransferPanel } from "../components/CashTransferPanel";
 import { useCashDashboard } from "../hooks/useCashDashboard";
 import type {
   CashTransaction,
@@ -46,6 +47,42 @@ export function CashPage(): JSX.Element {
         <MetricCard label="Расход" value={formatMoney(cash.summary.expense)} />
       </section>
 
+      <section className="cash-balances">
+        <h2>Остатки по кассам</h2>
+        <div className="stats-grid">
+          {paymentTypes.map((paymentType) => {
+            const balance = cash.summary.balances[paymentType.value];
+
+            return (
+              <MetricCard
+                key={paymentType.value}
+                label={paymentType.label}
+                value={
+                  <span className={balance < 0 ? "cash-negative" : ""}>
+                    {formatMoney(balance)}
+                  </span>
+                }
+              />
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="single-column-grid">
+        <CashTransferPanel
+          draft={cash.transferDraft}
+          saving={cash.transferring}
+          onDraftChange={cash.changeTransferDraft}
+          onSubmit={cash.transferMoney}
+        />
+      </section>
+
+      {(cash.error || cash.notice) && (
+        <div className={cash.error ? "alert" : "notice"}>
+          {cash.error || cash.notice}
+        </div>
+      )}
+
       <section className="panel list-panel">
         <PanelHeader
           icon={<WalletCards size={18} />}
@@ -64,8 +101,6 @@ export function CashPage(): JSX.Element {
           onResetCurrentMonth={cash.resetCurrentMonth}
           onTransactionTypeFilterChange={cash.setTransactionTypeFilter}
         />
-
-        {cash.error && <div className="alert">{cash.error}</div>}
 
         <CashTable
           loading={cash.loading}
@@ -293,7 +328,7 @@ function transactionSource(transaction: CashTransaction): string {
     return `Расход ${transaction.expense_id}`;
   }
 
-  return "-";
+  return "Перевод между кассами";
 }
 
 function formatMoney(value: number): string {

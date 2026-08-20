@@ -1,16 +1,21 @@
 import { useCallback, useEffect, useState } from "react";
+import type { FormEvent } from "react";
 import { useAuth } from "../../auth/context/AuthContext";
 import { usePersistedState } from "../../../shared/hooks/usePersistedState";
 import { readableError } from "../../../shared/utils/errors";
-import { listTransactionsRequest } from "../api/transactionsApi";
+import {
+  createCashTransferRequest,
+  listTransactionsRequest,
+} from "../api/transactionsApi";
 import type {
   CashSummary,
+  CashTransferDraft,
   CashTransaction,
   ListMeta,
   PaymentFilter,
   TransactionTypeFilter,
 } from "../types";
-import { initialCashSummary } from "../types";
+import { initialCashSummary, initialCashTransferDraft } from "../types";
 
 export function useCashDashboard() {
   const { api } = useAuth();
@@ -40,7 +45,12 @@ export function useCashDashboard() {
     total_pages: 0,
   });
   const [loading, setLoading] = useState(false);
+  const [transferring, setTransferring] = useState(false);
+  const [transferDraft, setTransferDraft] = useState<CashTransferDraft>(
+    initialCashTransferDraft,
+  );
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
   const loadTransactions = useCallback(async () => {
     setLoading(true);
@@ -56,7 +66,7 @@ export function useCashDashboard() {
       });
 
       setTransactions(payload.items ?? []);
-      setSummary(payload.summary ?? initialCashSummary);
+      setSummary(normalizeCashSummary(payload.summary));
       setMeta(payload.meta ?? { page, limit: 20, total: 0, total_pages: 0 });
     } catch (err) {
       setError(readableError(err));
@@ -96,12 +106,63 @@ export function useCashDashboard() {
     setPage(1);
   };
 
+  const changeTransferDraft = (patch: Partial<CashTransferDraft>) => {
+    setTransferDraft((current) => ({ ...current, ...patch }));
+  };
+
+  const transferMoney = async (event?: FormEvent<HTMLFormElement>) => {
+    event?.preventDefault();
+
+    const amount = Number(transferDraft.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setError("Укажите сумму перевода больше нуля.");
+      return;
+    }
+
+    if (transferDraft.fromPaymentType === transferDraft.toPaymentType) {
+      setError("Выберите разные кассы для перевода.");
+      return;
+    }
+
+    const available = summary.balances[transferDraft.fromPaymentType];
+    if (amount > available) {
+      setError(`Недостаточно денег в выбранной кассе. Доступно: ${available}.`);
+      return;
+    }
+
+    setTransferring(true);
+    setError("");
+    setNotice("");
+
+    try {
+      await createCashTransferRequest(api, {
+        amount,
+        from_payment_type: transferDraft.fromPaymentType,
+        to_payment_type: transferDraft.toPaymentType,
+      });
+      setTransferDraft((current) => ({ ...current, amount: "" }));
+      setNotice(`Перевод на сумму ${amount} выполнен.`);
+
+      if (page === 1) {
+        await loadTransactions();
+      } else {
+        setPage(1);
+      }
+    } catch (err) {
+      setError(readableError(err));
+    } finally {
+      setTransferring(false);
+    }
+  };
+
   return {
+    changeTransferDraft,
     dateFrom,
     dateTo,
     error,
     loading,
     meta,
+    notice,
     page,
     paymentFilter,
     setPage,
@@ -111,8 +172,22 @@ export function useCashDashboard() {
     setTransactionTypeFilter,
     resetCurrentMonth,
     summary,
+    transferDraft,
+    transferMoney,
+    transferring,
     transactionTypeFilter,
     transactions,
+  };
+}
+
+function normalizeCashSummary(summary?: CashSummary): CashSummary {
+  return {
+    ...initialCashSummary,
+    ...summary,
+    balances: {
+      ...initialCashSummary.balances,
+      ...summary?.balances,
+    },
   };
 }
 
