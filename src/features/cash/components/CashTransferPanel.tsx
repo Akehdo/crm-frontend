@@ -82,6 +82,7 @@ export function CashTransferPanel({
             type="number"
             value={draft.amount}
             onChange={(event) => onDraftChange({ amount: event.target.value })}
+            onWheel={(event) => event.currentTarget.blur()}
           />
         </label>
 
