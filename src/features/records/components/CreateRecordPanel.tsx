@@ -58,8 +58,8 @@ export function CreateRecordPanel({
             Цена за единицу веса
             <input
               {...enterNavigation<HTMLInputElement>(2)}
-              min="0.01"
-              step="0.01"
+              min="50"
+              step="50"
               type="number"
               value={draft.price}
               onChange={(event) => onDraftChange({ price: event.target.value })}

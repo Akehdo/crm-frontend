@@ -82,7 +82,7 @@ export const initialRecordDraft: CreateRecordDraft = {
   clientCode: "",
   trackNumbers: "",
   weight: "",
-  price: "",
+  price: "1950",
   payments: initialPaymentDraft,
 };
 

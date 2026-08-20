@@ -71,6 +71,14 @@ export function useRecordsDashboard() {
   const normalizedCreateDraft = normalizeCreateRecordDraft(createDraft);
   const normalizedUpdateDraft = normalizeUpdateRecordDraft(updateDraft);
 
+  useEffect(() => {
+    setCreateDraft((current) =>
+      current.price?.trim()
+        ? current
+        : { ...current, price: initialRecordDraft.price },
+    );
+  }, [setCreateDraft]);
+
   const changeCreateDraft = (patch: Partial<CreateRecordDraft>) => {
     setCreateDraft((current) => ({
       ...normalizeCreateRecordDraft(current),

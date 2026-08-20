@@ -54,6 +54,7 @@ export function useEnterNavigation() {
       },
       onKeyDown: (event) => {
         if (
+          event.currentTarget instanceof HTMLTextAreaElement ||
           (event.key !== "Enter" && event.code !== "NumpadEnter") ||
           event.nativeEvent.isComposing ||
           event.altKey ||
