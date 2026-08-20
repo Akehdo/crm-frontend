@@ -1,5 +1,4 @@
 import {
-  BarChart3,
   Banknote,
   Boxes,
   PackagePlus,
@@ -10,7 +9,7 @@ import {
 } from "lucide-react";
 
 export type WorkspaceModuleKey =
-  "operations" | "records" | "expenses" | "cash" | "search" | "reports";
+  "operations" | "records" | "expenses" | "cash" | "search";
 
 export type WorkspaceModule = {
   key: WorkspaceModuleKey;
@@ -49,12 +48,6 @@ export const workspaceModules: WorkspaceModule[] = [
     label: "Поиск",
     description: "Трек-номер и выборка",
     icon: Search,
-  },
-  {
-    key: "reports",
-    label: "Отчёты",
-    description: "Метрики по отправлениям",
-    icon: BarChart3,
   },
 ];
 

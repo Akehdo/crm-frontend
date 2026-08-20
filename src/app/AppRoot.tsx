@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { AuthPage } from "../features/auth/pages/AuthPage";
 import { ParcelOperationsPage } from "../features/parcels/pages/ParcelOperationsPage";
-import { ParcelReportsPage } from "../features/parcels/pages/ParcelReportsPage";
 import { ParcelSearchPage } from "../features/parcels/pages/ParcelSearchPage";
 import { RecordsPage } from "../features/records/pages/RecordsPage";
 import { ExpensesPage } from "../features/expenses/pages/ExpensesPage";
@@ -72,8 +71,6 @@ function renderWorkspaceModule(module: WorkspaceModuleKey): JSX.Element {
       return <CashPage />;
     case "search":
       return <ParcelSearchPage />;
-    case "reports":
-      return <ParcelReportsPage />;
     default:
       return <ParcelOperationsPage />;
   }

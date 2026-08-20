@@ -597,8 +597,7 @@ textarea:focus {
   font-size: 28px;
 }
 
-.workspace-grid,
-.report-grid {
+.workspace-grid {
   display: grid;
   grid-template-columns: minmax(260px, 1fr) minmax(260px, 1fr) minmax(
       260px,
@@ -627,7 +626,6 @@ textarea:focus {
 .tools-panel,
 .search-panel,
 .list-panel,
-.report-panel,
 .settings-panel {
   padding: 18px;
 }
@@ -650,7 +648,6 @@ textarea:focus {
 }
 
 .search-panel,
-.report-panel,
 .settings-panel {
   display: grid;
   align-content: start;
@@ -843,12 +840,6 @@ th {
   color: var(--danger);
 }
 
-.status-stack {
-  display: grid;
-  gap: 10px;
-}
-
-.status-row,
 .settings-row {
   min-height: 44px;
   display: flex;
@@ -859,17 +850,14 @@ th {
   border-bottom: 1px solid var(--line);
 }
 
-.status-row:last-child,
 .settings-row:last-child {
   border-bottom: 0;
 }
 
-.status-row span,
 .settings-row span {
   color: var(--muted);
 }
 
-.status-row strong,
 .settings-row strong {
   overflow-wrap: anywhere;
   text-align: right;
@@ -887,7 +875,6 @@ th {
 
 @media (max-width: 1120px) {
   .workspace-grid,
-  .report-grid,
   .settings-grid {
     grid-template-columns: 1fr;
   }
