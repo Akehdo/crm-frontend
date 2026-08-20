@@ -779,6 +779,10 @@ th {
   color: #ffe1a8;
 }
 
+.status-issued {
+  color: var(--ok);
+}
+
 .pagination {
   display: flex;
   align-items: center;

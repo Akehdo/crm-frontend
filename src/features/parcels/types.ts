@@ -1,4 +1,4 @@
-export type ParcelStatus = "added" | "shipped" | "almaty" | "koksh";
+export type ParcelStatus = "added" | "shipped" | "almaty" | "koksh" | "issued";
 export type StatusFilter = ParcelStatus | "all";
 
 export type StatusOption = {
@@ -31,6 +31,7 @@ export const parcelStatuses: StatusOption[] = [
   { value: "shipped", label: "Отправлены" },
   { value: "almaty", label: "Алматы" },
   { value: "koksh", label: "Кокшетау" },
+  { value: "issued", label: "Выданы" },
 ];
 
 export const parcelStatusLabels: Record<ParcelStatus, string> =
