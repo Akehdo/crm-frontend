@@ -1,13 +1,32 @@
 import { List } from "lucide-react";
+import { useEffect } from "react";
 import { CreateRecordPanel } from "../components/CreateRecordPanel";
 import { DailyTrackNumbersDialog } from "../components/DailyTrackNumbersDialog";
 import { RecordMessages } from "../components/RecordMessages";
 import { RecordTablePanel } from "../components/RecordTablePanel";
 import { UpdateRecordPanel } from "../components/UpdateRecordPanel";
 import { useRecordsDashboard } from "../hooks/useRecordsDashboard";
+import type { RecordEntity } from "../types";
 
-export function RecordsPage(): JSX.Element {
+type RecordsPageProps = {
+  recordToOpen: RecordEntity | null;
+  onRecordOpened: () => void;
+};
+
+export function RecordsPage({
+  recordToOpen,
+  onRecordOpened,
+}: RecordsPageProps): JSX.Element {
   const records = useRecordsDashboard();
+
+  useEffect(() => {
+    if (!recordToOpen) {
+      return;
+    }
+
+    records.selectRecordForUpdate(recordToOpen);
+    onRecordOpened();
+  }, [recordToOpen]);
 
   return (
     <main className="dashboard">

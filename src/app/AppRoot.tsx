@@ -1,8 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { AuthPage } from "../features/auth/pages/AuthPage";
 import { ParcelOperationsPage } from "../features/parcels/pages/ParcelOperationsPage";
 import { ParcelSearchPage } from "../features/parcels/pages/ParcelSearchPage";
 import { RecordsPage } from "../features/records/pages/RecordsPage";
+import type { RecordEntity } from "../features/records/types";
 import { ExpensesPage } from "../features/expenses/pages/ExpensesPage";
 import { CashPage } from "../features/cash/pages/CashPage";
 import { SessionRestorePage } from "../features/session/pages/SessionRestorePage";
@@ -23,6 +24,7 @@ export function AppRoot(): JSX.Element {
     "crm.workspace.module",
     "operations",
   );
+  const [recordToOpen, setRecordToOpen] = useState<RecordEntity | null>(null);
   const safeModule = isWorkspaceModule(activeModule)
     ? activeModule
     : "operations";
@@ -54,23 +56,41 @@ export function AppRoot(): JSX.Element {
       onModuleChange={setActiveModule}
       onThemeChange={setTheme}
     >
-      {renderWorkspaceModule(safeModule)}
+      {renderWorkspaceModule(
+        safeModule,
+        recordToOpen,
+        () => setRecordToOpen(null),
+        (record) => {
+          setRecordToOpen(record);
+          setActiveModule("records");
+        },
+      )}
     </AuthenticatedLayout>
   );
 }
 
-function renderWorkspaceModule(module: WorkspaceModuleKey): JSX.Element {
+function renderWorkspaceModule(
+  module: WorkspaceModuleKey,
+  recordToOpen: RecordEntity | null,
+  onRecordOpened: () => void,
+  onRecordOpen: (record: RecordEntity) => void,
+): JSX.Element {
   switch (module) {
     case "operations":
       return <ParcelOperationsPage />;
     case "records":
-      return <RecordsPage />;
+      return (
+        <RecordsPage
+          recordToOpen={recordToOpen}
+          onRecordOpened={onRecordOpened}
+        />
+      );
     case "expenses":
       return <ExpensesPage />;
     case "cash":
       return <CashPage />;
     case "search":
-      return <ParcelSearchPage />;
+      return <ParcelSearchPage onRecordOpen={onRecordOpen} />;
     default:
       return <ParcelOperationsPage />;
   }

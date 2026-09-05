@@ -222,6 +222,12 @@ export function useRecordsDashboard() {
     });
     setError("");
     setNotice(`Запись выбрана для обновления: ${record.id}`);
+    requestAnimationFrame(() => {
+      document.getElementById("record-update-panel")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
   };
 
   const deleteRecord = async (id: string) => {

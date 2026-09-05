@@ -120,7 +120,16 @@ function renderTableState(
         <tbody>
           {records.map((record) => (
             <tr key={record.id}>
-              <td>{record.id}</td>
+              <td>
+                <button
+                  className="entity-id-link table-id-link"
+                  type="button"
+                  title={`Открыть выдачу ${record.id}`}
+                  onClick={() => onUpdateSelect(record)}
+                >
+                  {record.id}
+                </button>
+              </td>
               <td>{record.client_code}</td>
               <td
                 className="track-cell"

@@ -2,8 +2,15 @@ import { ParcelMessages } from "../components/ParcelMessages";
 import { ParcelSearchPanel } from "../components/ParcelSearchPanel";
 import { ParcelTablePanel } from "../components/ParcelTablePanel";
 import { useParcelsDashboard } from "../hooks/useParcelsDashboard";
+import type { RecordEntity } from "../../records/types";
 
-export function ParcelSearchPage(): JSX.Element {
+type ParcelSearchPageProps = {
+  onRecordOpen: (record: RecordEntity) => void;
+};
+
+export function ParcelSearchPage({
+  onRecordOpen,
+}: ParcelSearchPageProps): JSX.Element {
   const parcels = useParcelsDashboard();
 
   return (
@@ -18,8 +25,10 @@ export function ParcelSearchPage(): JSX.Element {
       <section className="single-column-grid">
         <ParcelSearchPanel
           selectedParcel={parcels.selectedParcel}
+          selectedRecord={parcels.selectedRecord}
           saving={parcels.saving}
           track={parcels.searchTrack}
+          onRecordOpen={onRecordOpen}
           onSubmit={parcels.findTrack}
           onTrackChange={parcels.setSearchTrack}
         />
@@ -35,6 +44,9 @@ export function ParcelSearchPage(): JSX.Element {
         parcels={parcels.parcels}
         setFilter={parcels.setFilter}
         setPage={parcels.setPage}
+        onParcelOpen={(parcel) =>
+          parcels.openRecordForParcel(parcel, onRecordOpen)
+        }
       />
     </main>
   );

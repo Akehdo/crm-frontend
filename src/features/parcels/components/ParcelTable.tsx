@@ -10,6 +10,7 @@ type ParcelTableProps = {
   page: number;
   parcels: Parcel[];
   setPage: Dispatch<SetStateAction<number>>;
+  onParcelOpen: (parcel: Parcel) => Promise<void>;
 };
 
 export function ParcelTable({
@@ -18,10 +19,11 @@ export function ParcelTable({
   page,
   parcels,
   setPage,
+  onParcelOpen,
 }: ParcelTableProps): JSX.Element {
   return (
     <>
-      {renderTableState(loading, parcels)}
+      {renderTableState(loading, parcels, onParcelOpen)}
       <div className="pagination">
         <button
           className="icon-button"
@@ -49,7 +51,11 @@ export function ParcelTable({
   );
 }
 
-function renderTableState(loading: boolean, parcels: Parcel[]): JSX.Element {
+function renderTableState(
+  loading: boolean,
+  parcels: Parcel[],
+  onParcelOpen: (parcel: Parcel) => Promise<void>,
+): JSX.Element {
   if (loading) {
     return (
       <div className="table-state">
@@ -78,7 +84,16 @@ function renderTableState(loading: boolean, parcels: Parcel[]): JSX.Element {
         <tbody>
           {parcels.map((parcel) => (
             <tr key={parcel.id}>
-              <td>{parcel.id}</td>
+              <td>
+                <button
+                  className="entity-id-link table-id-link"
+                  type="button"
+                  title={`Открыть связанную выдачу ${parcel.id}`}
+                  onClick={() => void onParcelOpen(parcel)}
+                >
+                  {parcel.id}
+                </button>
+              </td>
               <td className="track-cell">{parcel.track_number}</td>
               <td>
                 <StatusBadge status={parcel.status} />

@@ -11,6 +11,7 @@ type ParcelTablePanelProps = {
   parcels: Parcel[];
   setFilter: Dispatch<SetStateAction<StatusFilter>>;
   setPage: Dispatch<SetStateAction<number>>;
+  onParcelOpen: (parcel: Parcel) => Promise<void>;
 };
 
 export function ParcelTablePanel(props: ParcelTablePanelProps): JSX.Element {
@@ -29,6 +30,7 @@ export function ParcelTablePanel(props: ParcelTablePanelProps): JSX.Element {
         page={props.page}
         parcels={props.parcels}
         setPage={props.setPage}
+        onParcelOpen={props.onParcelOpen}
       />
     </section>
   );

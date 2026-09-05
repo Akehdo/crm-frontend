@@ -1,5 +1,8 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../../auth/context/AuthContext";
+import { findRecordByTrackNumberRequest } from "../../records/api/recordsApi";
+import type { RecordEntity } from "../../records/types";
+import { ApiError } from "../../../shared/api/http";
 import { usePersistedState } from "../../../shared/hooks/usePersistedState";
 import { readableError } from "../../../shared/utils/errors";
 import {
@@ -44,6 +47,9 @@ export function useParcelsDashboard() {
     total_pages: 0,
   });
   const [selectedParcel, setSelectedParcel] = useState<Parcel | null>(null);
+  const [selectedRecord, setSelectedRecord] = useState<RecordEntity | null>(
+    null,
+  );
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState<SavingState>("");
   const [error, setError] = useState("");
@@ -142,20 +148,64 @@ export function useParcelsDashboard() {
     const track = searchTrack.trim();
     if (!track) {
       setSelectedParcel(null);
+      setSelectedRecord(null);
       return;
     }
 
     setSaving("search");
     setError("");
     setSelectedParcel(null);
+    setSelectedRecord(null);
 
     try {
       const payload = await api<Parcel>(
         `/parcels/${encodeURIComponent(track)}`,
       );
       setSelectedParcel(payload);
+
+      try {
+        setSelectedRecord(await findRecordByTrackNumberRequest(api, track));
+      } catch {
+        setSelectedRecord(null);
+      }
     } catch (err) {
       setError(readableError(err));
+    } finally {
+      setSaving("");
+    }
+  };
+
+  const openRecordForParcel = async (
+    parcel: Parcel,
+    onRecordOpen: (record: RecordEntity) => void,
+  ) => {
+    setSaving("search");
+    setError("");
+    setNotice("");
+    setSearchTrack(parcel.track_number);
+    setSelectedParcel(parcel);
+    setSelectedRecord(null);
+
+    try {
+      const record = await findRecordByTrackNumberRequest(
+        api,
+        parcel.track_number,
+      );
+      setSelectedRecord(record);
+      onRecordOpen(record);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) {
+        setNotice("Для этой посылки выдача ещё не создана.");
+      } else {
+        setError(readableError(err));
+      }
+
+      requestAnimationFrame(() => {
+        document.getElementById("parcel-search-panel")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      });
     } finally {
       setSaving("");
     }
@@ -171,11 +221,13 @@ export function useParcelsDashboard() {
     loading,
     meta,
     notice,
+    openRecordForParcel,
     page,
     parcels,
     saving,
     searchTrack,
     selectedParcel,
+    selectedRecord,
     setCreateDraft,
     setFilter,
     setPage,

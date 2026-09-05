@@ -35,7 +35,7 @@ export function UpdateRecordPanel({
   const enterNavigation = useEnterNavigation();
 
   return (
-    <div className="panel tools-panel">
+    <div className="panel tools-panel" id="record-update-panel">
       <PanelHeader icon={<FilePenLine size={18} />} title="Обновить запись" />
       <form className="record-form" onSubmit={onSubmit}>
         <label>

@@ -45,6 +45,15 @@ export function listDailyTrackNumbersRequest(
   );
 }
 
+export function findRecordByTrackNumberRequest(
+  api: ApiClient,
+  trackNumber: string,
+): Promise<RecordEntity> {
+  return api<RecordEntity>(
+    `/records/by-track/${encodeURIComponent(trackNumber)}`,
+  );
+}
+
 export function createRecordRequest(
   api: ApiClient,
   payload: CreateRecordPayload,
