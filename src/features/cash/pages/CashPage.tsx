@@ -34,17 +34,31 @@ export function CashPage(): JSX.Element {
         </div>
       </header>
 
-      <section className="stats-grid">
+      <section className="stats-grid cash-summary-grid">
         <MetricCard
-          label="Баланс"
+          label="Общие деньги"
           value={
             <span className={cash.summary.balance < 0 ? "cash-negative" : ""}>
               {formatMoney(cash.summary.balance)}
             </span>
           }
         />
-        <MetricCard label="Доход" value={formatMoney(cash.summary.income)} />
-        <MetricCard label="Расход" value={formatMoney(cash.summary.expense)} />
+        <MetricCard
+          label="Прибыль за период"
+          value={
+            <span className={cash.summary.profit < 0 ? "cash-negative" : ""}>
+              {formatMoney(cash.summary.profit)}
+            </span>
+          }
+        />
+        <MetricCard
+          label="Доход за период"
+          value={formatMoney(cash.summary.income)}
+        />
+        <MetricCard
+          label="Расход за период"
+          value={formatMoney(cash.summary.expense)}
+        />
       </section>
 
       <section className="cash-balances">

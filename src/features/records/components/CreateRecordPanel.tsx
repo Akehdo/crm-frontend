@@ -6,7 +6,13 @@ import {
   formatRecordPrice,
   useEnterNavigation,
 } from "../lib/recordForm";
-import { CreateRecordDraft, paymentTypes } from "../types";
+import {
+  CreateRecordDraft,
+  packagePrices,
+  packageTypes,
+  paymentTypes,
+} from "../types";
+import { RecordUnitPriceInput } from "./RecordUnitPriceInput";
 
 type CreateRecordPanelProps = {
   draft: CreateRecordDraft;
@@ -21,7 +27,11 @@ export function CreateRecordPanel({
   onDraftChange,
   onSubmit,
 }: CreateRecordPanelProps): JSX.Element {
-  const totalPrice = calculateTotalPrice(draft.weight, draft.price);
+  const totalPrice = calculateTotalPrice(
+    draft.weight,
+    draft.price,
+    packagePrices[draft.packageType],
+  );
   const enterNavigation = useEnterNavigation();
 
   return (
@@ -33,8 +43,8 @@ export function CreateRecordPanel({
             Код клиента
             <input
               {...enterNavigation<HTMLInputElement>(0)}
-              min="1"
-              type="number"
+              inputMode="numeric"
+              type="text"
               value={draft.clientCode}
               onChange={(event) =>
                 onDraftChange({ clientCode: event.target.value })
@@ -42,12 +52,11 @@ export function CreateRecordPanel({
             />
           </label>
           <label>
-            Вес
+            Вес, кг
             <input
               {...enterNavigation<HTMLInputElement>(1)}
-              min="0.01"
-              step="0.01"
-              type="number"
+              inputMode="decimal"
+              type="text"
               value={draft.weight}
               onChange={(event) =>
                 onDraftChange({ weight: event.target.value })
@@ -56,14 +65,30 @@ export function CreateRecordPanel({
           </label>
           <label>
             Цена за единицу веса
-            <input
+            <RecordUnitPriceInput
               {...enterNavigation<HTMLInputElement>(2)}
-              min="50"
-              step="50"
-              type="number"
               value={draft.price}
-              onChange={(event) => onDraftChange({ price: event.target.value })}
+              onValueChange={(price) => onDraftChange({ price })}
             />
+          </label>
+          <label>
+            Пакет
+            <select
+              {...enterNavigation<HTMLSelectElement>(3)}
+              value={draft.packageType}
+              onChange={(event) =>
+                onDraftChange({
+                  packageType: event.target
+                    .value as CreateRecordDraft["packageType"],
+                })
+              }
+            >
+              {packageTypes.map((packageType) => (
+                <option key={packageType.value} value={packageType.value}>
+                  {packageType.label}
+                </option>
+              ))}
+            </select>
           </label>
           <div className="record-total" aria-live="polite">
             <Calculator aria-hidden="true" size={24} />
@@ -79,10 +104,11 @@ export function CreateRecordPanel({
               <label key={paymentType.value}>
                 {paymentType.label}
                 <input
-                  {...enterNavigation<HTMLInputElement>(3 + paymentTypes.indexOf(paymentType))}
-                  min="0.01"
-                  step="0.01"
-                  type="number"
+                  {...enterNavigation<HTMLInputElement>(
+                    4 + paymentTypes.indexOf(paymentType),
+                  )}
+                  inputMode="decimal"
+                  type="text"
                   value={draft.payments[paymentType.value]}
                   onChange={(event) =>
                     onDraftChange({
@@ -101,7 +127,7 @@ export function CreateRecordPanel({
         <label>
           Трек-номера
           <textarea
-            {...enterNavigation<HTMLTextAreaElement>(6)}
+            {...enterNavigation<HTMLTextAreaElement>(7)}
             rows={7}
             value={draft.trackNumbers}
             onChange={(event) =>
@@ -112,7 +138,7 @@ export function CreateRecordPanel({
         </label>
 
         <button
-          {...enterNavigation<HTMLButtonElement>(7)}
+          {...enterNavigation<HTMLButtonElement>(8)}
           className="primary-button"
           disabled={saving}
           type="submit"

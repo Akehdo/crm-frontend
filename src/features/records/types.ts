@@ -1,6 +1,7 @@
 export type PaymentType = "kaspiQR" | "card" | "cash";
 export type PaymentFilter = PaymentType | "all";
 export type PaymentDraft = Record<PaymentType, string>;
+export type PackageType = "none" | "large" | "medium" | "small";
 
 export type RecordPayment = {
   amount: number;
@@ -12,11 +13,13 @@ export type CreateRecordDraft = {
   trackNumbers: string;
   weight: string;
   price: string;
+  packageType: PackageType;
   payments: PaymentDraft;
 };
 
-export type UpdateRecordDraft = CreateRecordDraft & {
+export type UpdateRecordDraft = Omit<CreateRecordDraft, "packageType"> & {
   id: string;
+  packageType: PackageType | "";
 };
 
 export type RecordEntity = {
@@ -25,6 +28,7 @@ export type RecordEntity = {
   track_numbers: string[];
   weight: number;
   price: number;
+  package_type: PackageType;
   payment_type: PaymentType;
   payments: RecordPayment[];
   created_at: string;
@@ -53,6 +57,7 @@ export type CreateRecordPayload = {
   track_numbers: string[];
   weight: number;
   price: number;
+  package_type: PackageType;
   payment_type?: PaymentType;
   payments: RecordPayment[];
 };
@@ -72,6 +77,27 @@ export const paymentTypes = Object.entries(paymentTypeLabels).map(
   }),
 );
 
+export const packageTypeLabels: Record<PackageType, string> = {
+  none: "Без пакета",
+  large: "Большой — 30",
+  medium: "Средний — 40",
+  small: "Маленький — 50",
+};
+
+export const packagePrices: Record<PackageType, number> = {
+  none: 0,
+  large: 30,
+  medium: 40,
+  small: 50,
+};
+
+export const packageTypes = Object.entries(packageTypeLabels).map(
+  ([value, label]) => ({
+    value: value as PackageType,
+    label,
+  }),
+);
+
 export const initialPaymentDraft: PaymentDraft = {
   kaspiQR: "",
   card: "",
@@ -83,6 +109,7 @@ export const initialRecordDraft: CreateRecordDraft = {
   trackNumbers: "",
   weight: "",
   price: "1950",
+  packageType: "none",
   payments: initialPaymentDraft,
 };
 
@@ -92,5 +119,6 @@ export const initialUpdateRecordDraft: UpdateRecordDraft = {
   trackNumbers: "",
   weight: "",
   price: "",
+  packageType: "",
   payments: initialPaymentDraft,
 };

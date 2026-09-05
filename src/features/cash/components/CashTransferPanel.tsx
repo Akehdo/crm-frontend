@@ -41,7 +41,6 @@ export function CashTransferPanel({
             >
               {paymentTypes.map((paymentType) => (
                 <option
-                  disabled={paymentType.value === draft.toPaymentType}
                   key={paymentType.value}
                   value={paymentType.value}
                 >
@@ -63,7 +62,6 @@ export function CashTransferPanel({
             >
               {paymentTypes.map((paymentType) => (
                 <option
-                  disabled={paymentType.value === draft.fromPaymentType}
                   key={paymentType.value}
                   value={paymentType.value}
                 >

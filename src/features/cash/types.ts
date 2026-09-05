@@ -19,6 +19,7 @@ export type CashSummary = {
   balances: Record<PaymentType, number>;
   expense: number;
   income: number;
+  profit: number;
 };
 
 export type ListMeta = {
@@ -74,6 +75,7 @@ export const initialCashSummary: CashSummary = {
   },
   expense: 0,
   income: 0,
+  profit: 0,
 };
 
 export const initialCashTransferDraft: CashTransferDraft = {

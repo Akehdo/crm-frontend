@@ -1,12 +1,10 @@
 import { useRef } from "react";
-import type {
-  KeyboardEventHandler,
-  RefCallback,
-} from "react";
+import type { KeyboardEventHandler, RefCallback } from "react";
 
 export function calculateTotalPrice(
   weightValue: string,
   unitPriceValue: string,
+  packagePrice = 0,
 ): number | null {
   if (!weightValue.trim() || !unitPriceValue.trim()) {
     return null;
@@ -18,12 +16,16 @@ export function calculateTotalPrice(
     !Number.isFinite(weight) ||
     weight <= 0 ||
     !Number.isFinite(unitPrice) ||
-    unitPrice <= 0
+    unitPrice <= 0 ||
+    !Number.isFinite(packagePrice) ||
+    packagePrice < 0
   ) {
     return null;
   }
 
-  return Math.round((weight * unitPrice + Number.EPSILON) * 100) / 100;
+  return (
+    Math.round((weight * unitPrice + packagePrice + Number.EPSILON) * 100) / 100
+  );
 }
 
 export function formatRecordPrice(value: number | null): string {
@@ -84,10 +86,17 @@ export function useEnterNavigation() {
 export function totalPriceToUnitPrice(
   totalPrice: number,
   weight: number,
+  packagePrice = 0,
 ): string {
-  if (!Number.isFinite(weight) || weight <= 0) {
+  if (
+    !Number.isFinite(weight) ||
+    weight <= 0 ||
+    !Number.isFinite(packagePrice) ||
+    packagePrice < 0 ||
+    totalPrice <= packagePrice
+  ) {
     return String(totalPrice);
   }
 
-  return String(Number((totalPrice / weight).toFixed(6)));
+  return String(Number(((totalPrice - packagePrice) / weight).toFixed(6)));
 }

@@ -11,16 +11,14 @@ import {
   updateRecordRequest,
 } from "../api/recordsApi";
 import { parseRecordTracks } from "../lib/trackNumbers";
-import {
-  calculateTotalPrice,
-  totalPriceToUnitPrice,
-} from "../lib/recordForm";
+import { calculateTotalPrice, totalPriceToUnitPrice } from "../lib/recordForm";
 import type {
   CreateRecordDraft,
   CreateRecordPayload,
   ListMeta,
   PaymentDraft,
   PaymentFilter,
+  PackageType,
   RecordEntity,
   RecordPayment,
   UpdateRecordDraft,
@@ -30,6 +28,7 @@ import {
   initialPaymentDraft,
   initialRecordDraft,
   initialUpdateRecordDraft,
+  packagePrices,
 } from "../types";
 
 export type RecordSavingState = "" | "create" | "update" | "delete";
@@ -202,13 +201,24 @@ export function useRecordsDashboard() {
   };
 
   const selectRecordForUpdate = (record: RecordEntity) => {
+    const packageType = record.package_type ?? "none";
+
     setUpdateDraft({
       id: record.id,
       clientCode: String(record.client_code),
       trackNumbers: record.track_numbers.join("\n"),
       weight: String(record.weight),
-      price: totalPriceToUnitPrice(record.price, record.weight),
-      payments: paymentsToDraft(record.payments, record.price, record.payment_type),
+      price: totalPriceToUnitPrice(
+        record.price,
+        record.weight,
+        packagePrices[packageType],
+      ),
+      packageType,
+      payments: paymentsToDraft(
+        record.payments,
+        record.price,
+        record.payment_type,
+      ),
     });
     setError("");
     setNotice(`Запись выбрана для обновления: ${record.id}`);
@@ -278,7 +288,9 @@ function currentLocalDate(): string {
   return `${year}-${month}-${day}`;
 }
 
-function normalizeCreateRecordDraft(draft: CreateRecordDraft): CreateRecordDraft {
+function normalizeCreateRecordDraft(
+  draft: CreateRecordDraft,
+): CreateRecordDraft {
   const legacyDraft = draft as CreateRecordDraft & {
     paymentType?: keyof PaymentDraft;
   };
@@ -286,6 +298,7 @@ function normalizeCreateRecordDraft(draft: CreateRecordDraft): CreateRecordDraft
   return {
     ...initialRecordDraft,
     ...draft,
+    packageType: normalizePackageType(draft.packageType, "none"),
     payments: normalizePaymentDraft(draft.payments, {
       amount: draft.price,
       paymentType: legacyDraft.paymentType,
@@ -293,7 +306,9 @@ function normalizeCreateRecordDraft(draft: CreateRecordDraft): CreateRecordDraft
   };
 }
 
-function normalizeUpdateRecordDraft(draft: UpdateRecordDraft): UpdateRecordDraft {
+function normalizeUpdateRecordDraft(
+  draft: UpdateRecordDraft,
+): UpdateRecordDraft {
   const legacyDraft = draft as UpdateRecordDraft & {
     paymentType?: keyof PaymentDraft;
   };
@@ -301,11 +316,24 @@ function normalizeUpdateRecordDraft(draft: UpdateRecordDraft): UpdateRecordDraft
   return {
     ...initialUpdateRecordDraft,
     ...draft,
+    packageType: normalizePackageType(draft.packageType, ""),
     payments: normalizePaymentDraft(draft.payments, {
       amount: draft.price,
       paymentType: legacyDraft.paymentType,
     }),
   };
+}
+
+function normalizePackageType<TFallback extends "none" | "">(
+  packageType: PackageType | "" | undefined,
+  fallback: TFallback,
+): PackageType | TFallback {
+  return packageType === "none" ||
+    packageType === "large" ||
+    packageType === "medium" ||
+    packageType === "small"
+    ? packageType
+    : fallback;
 }
 
 function normalizePaymentDraft(
@@ -334,7 +362,11 @@ function buildCreatePayload(
   const clientCode = Number(draft.clientCode);
   const weight = Number(draft.weight);
   const unitPrice = Number(draft.price);
-  const totalPrice = calculateTotalPrice(draft.weight, draft.price);
+  const totalPrice = calculateTotalPrice(
+    draft.weight,
+    draft.price,
+    packagePrices[draft.packageType],
+  );
   const trackNumbers = parseRecordTracks(draft.trackNumbers);
   const payments = buildPaymentsPayload(draft.payments);
 
@@ -363,7 +395,10 @@ function buildCreatePayload(
   }
 
   if (!isSameAmount(paymentsTotal(payments), totalPrice)) {
-    return { ok: false, error: "Сумма оплат должна совпадать с итоговой ценой." };
+    return {
+      ok: false,
+      error: "Сумма оплат должна совпадать с итоговой ценой.",
+    };
   }
 
   return {
@@ -373,6 +408,7 @@ function buildCreatePayload(
       track_numbers: trackNumbers,
       weight,
       price: totalPrice,
+      package_type: draft.packageType,
       payments,
     },
   };
@@ -413,15 +449,26 @@ function buildUpdatePayload(
   if (draft.price.trim()) {
     const unitPrice = Number(draft.price);
     if (!Number.isFinite(unitPrice) || unitPrice <= 0) {
-      return { ok: false, error: "Цена за единицу веса должна быть больше нуля." };
+      return {
+        ok: false,
+        error: "Цена за единицу веса должна быть больше нуля.",
+      };
     }
 
-    const totalPrice = calculateTotalPrice(draft.weight, draft.price);
+    const totalPrice = calculateTotalPrice(
+      draft.weight,
+      draft.price,
+      draft.packageType ? packagePrices[draft.packageType] : 0,
+    );
     if (totalPrice === null || totalPrice <= 0) {
       return { ok: false, error: "Укажите вес для расчёта итоговой цены." };
     }
 
     payload.price = totalPrice;
+  }
+
+  if (draft.packageType) {
+    payload.package_type = draft.packageType;
   }
 
   const payments = buildPaymentsPayload(draft.payments);
@@ -432,7 +479,10 @@ function buildUpdatePayload(
     }
 
     if (!isSameAmount(paymentsTotal(payments), price)) {
-      return { ok: false, error: "Сумма оплат должна совпадать с итоговой ценой." };
+      return {
+        ok: false,
+        error: "Сумма оплат должна совпадать с итоговой ценой.",
+      };
     }
 
     payload.payments = payments;

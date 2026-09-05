@@ -10,7 +10,12 @@ import { useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { formatDate } from "../../../shared/utils/date";
 import type { RecordSavingState } from "../hooks/useRecordsDashboard";
-import { ListMeta, paymentTypeLabels, RecordEntity } from "../types";
+import {
+  ListMeta,
+  packageTypeLabels,
+  paymentTypeLabels,
+  RecordEntity,
+} from "../types";
 
 type RecordTableProps = {
   loading: boolean;
@@ -105,6 +110,7 @@ function renderTableState(
             <th>Трек-номера</th>
             <th>Оплата</th>
             <th>Вес</th>
+            <th>Пакет</th>
             <th>Цена</th>
             <th>Создано</th>
             <th>Обновлено</th>
@@ -128,6 +134,7 @@ function renderTableState(
                 </span>
               </td>
               <td>{record.weight}</td>
+              <td>{packageTypeLabels[record.package_type]}</td>
               <td>{record.price}</td>
               <td>{formatDate(record.created_at)}</td>
               <td>{formatDate(record.updated_at)}</td>

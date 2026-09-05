@@ -6,7 +6,13 @@ import {
   formatRecordPrice,
   useEnterNavigation,
 } from "../lib/recordForm";
-import { paymentTypes, UpdateRecordDraft } from "../types";
+import {
+  packagePrices,
+  packageTypes,
+  paymentTypes,
+  UpdateRecordDraft,
+} from "../types";
+import { RecordUnitPriceInput } from "./RecordUnitPriceInput";
 
 type UpdateRecordPanelProps = {
   draft: UpdateRecordDraft;
@@ -21,7 +27,11 @@ export function UpdateRecordPanel({
   onDraftChange,
   onSubmit,
 }: UpdateRecordPanelProps): JSX.Element {
-  const totalPrice = calculateTotalPrice(draft.weight, draft.price);
+  const totalPrice = calculateTotalPrice(
+    draft.weight,
+    draft.price,
+    draft.packageType ? packagePrices[draft.packageType] : 0,
+  );
   const enterNavigation = useEnterNavigation();
 
   return (
@@ -43,8 +53,8 @@ export function UpdateRecordPanel({
             Код клиента
             <input
               {...enterNavigation<HTMLInputElement>(1)}
-              min="1"
-              type="number"
+              inputMode="numeric"
+              type="text"
               value={draft.clientCode}
               onChange={(event) =>
                 onDraftChange({ clientCode: event.target.value })
@@ -52,12 +62,11 @@ export function UpdateRecordPanel({
             />
           </label>
           <label>
-            Вес
+            Вес, кг
             <input
               {...enterNavigation<HTMLInputElement>(2)}
-              min="0.01"
-              step="0.01"
-              type="number"
+              inputMode="decimal"
+              type="text"
               value={draft.weight}
               onChange={(event) =>
                 onDraftChange({ weight: event.target.value })
@@ -66,14 +75,31 @@ export function UpdateRecordPanel({
           </label>
           <label>
             Цена за единицу веса
-            <input
+            <RecordUnitPriceInput
               {...enterNavigation<HTMLInputElement>(3)}
-              min="50"
-              step="50"
-              type="number"
               value={draft.price}
-              onChange={(event) => onDraftChange({ price: event.target.value })}
+              onValueChange={(price) => onDraftChange({ price })}
             />
+          </label>
+          <label>
+            Пакет
+            <select
+              {...enterNavigation<HTMLSelectElement>(4)}
+              value={draft.packageType}
+              onChange={(event) =>
+                onDraftChange({
+                  packageType: event.target
+                    .value as UpdateRecordDraft["packageType"],
+                })
+              }
+            >
+              <option value="">Не менять</option>
+              {packageTypes.map((packageType) => (
+                <option key={packageType.value} value={packageType.value}>
+                  {packageType.label}
+                </option>
+              ))}
+            </select>
           </label>
           <div className="record-total" aria-live="polite">
             <Calculator aria-hidden="true" size={24} />
@@ -89,10 +115,11 @@ export function UpdateRecordPanel({
               <label key={paymentType.value}>
                 {paymentType.label}
                 <input
-                  {...enterNavigation<HTMLInputElement>(4 + paymentTypes.indexOf(paymentType))}
-                  min="0.01"
-                  step="0.01"
-                  type="number"
+                  {...enterNavigation<HTMLInputElement>(
+                    5 + paymentTypes.indexOf(paymentType),
+                  )}
+                  inputMode="decimal"
+                  type="text"
                   value={draft.payments[paymentType.value]}
                   onChange={(event) =>
                     onDraftChange({
@@ -111,7 +138,7 @@ export function UpdateRecordPanel({
         <label>
           Трек-номера
           <textarea
-            {...enterNavigation<HTMLTextAreaElement>(7)}
+            {...enterNavigation<HTMLTextAreaElement>(8)}
             rows={7}
             value={draft.trackNumbers}
             onChange={(event) =>
@@ -122,7 +149,7 @@ export function UpdateRecordPanel({
         </label>
 
         <button
-          {...enterNavigation<HTMLButtonElement>(8)}
+          {...enterNavigation<HTMLButtonElement>(9)}
           className="secondary-button"
           disabled={saving}
           type="submit"
