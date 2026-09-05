@@ -720,10 +720,24 @@ textarea:focus {
   background: var(--surface-soft);
 }
 
-.parcel-preview span:first-child,
+.parcel-preview-track,
 .track-cell {
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   font-weight: 700;
+}
+
+.parcel-preview-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  text-align: right;
+}
+
+.parcel-issued-date {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .list-panel {
