@@ -1,4 +1,5 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
+import { forwardRef } from "react";
 import type { InputHTMLAttributes } from "react";
 
 type RecordUnitPriceInputProps = Omit<
@@ -11,12 +12,13 @@ type RecordUnitPriceInputProps = Omit<
 
 const UNIT_PRICE_STEP = 50;
 
-export function RecordUnitPriceInput({
-  className,
-  onValueChange,
-  value,
-  ...inputProps
-}: RecordUnitPriceInputProps): JSX.Element {
+export const RecordUnitPriceInput = forwardRef<
+  HTMLInputElement,
+  RecordUnitPriceInputProps
+>(function RecordUnitPriceInput(
+  { className, onValueChange, value, ...inputProps },
+  ref,
+): JSX.Element {
   const numericValue = Number(value);
   const cannotDecrease =
     Number.isFinite(numericValue) && numericValue <= UNIT_PRICE_STEP;
@@ -36,6 +38,7 @@ export function RecordUnitPriceInput({
     <div className="record-unit-price-stepper">
       <input
         {...inputProps}
+        ref={ref}
         className={["record-unit-price-input", className]
           .filter(Boolean)
           .join(" ")}
@@ -69,4 +72,4 @@ export function RecordUnitPriceInput({
       </div>
     </div>
   );
-}
+});
