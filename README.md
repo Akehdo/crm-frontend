@@ -42,21 +42,26 @@ docker build -t crm-frontend .
 docker run --rm -p 3000:80 crm-frontend
 ```
 
-The production Compose stack is managed from `../crm-backend`:
+The local Compose stack is managed from `../crm-backend`, using its configured `.env`:
 
 ```bash
 cd ../crm-backend
-cp .env.production.example .env
-# Fill all empty values in .env first.
 docker compose config --quiet
 docker compose up -d --build --remove-orphans
 ```
 
 ```text
-http://SERVER_IP
+http://localhost:8081
 ```
 
-nginx serves the built static assets on port 80 and proxies `/api` to the backend container.
+The default backend Compose stack serves local HTTP at `http://localhost:8081`
+with nginx API rate limits and no certificate requirement.
+On the Linux server, set `COMPOSE_FILE=docker-compose.yml:docker-compose.production.yml`
+in the backend `.env`. Keep this setting out of the local `.env`.
+With this production override, nginx serves HTTPS on port 443 and redirects port 80 after a certificate
+is installed. Before that it serves only health and ACME on port 80. The backend
+Compose stack mounts the shared Certbot volumes and configures `CRM_DOMAIN`.
+See `crm-backend/docs/nginx-https.md` for issuance, renewal, and API rate limits.
 Postgres, Redis, and the backend do not publish host ports in the production stack.
 
 ## Auth refresh

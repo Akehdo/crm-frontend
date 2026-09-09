@@ -1,0 +1,25 @@
+server {
+  listen 80;
+  listen [::]:80;
+  server_name ${CRM_DOMAIN};
+  server_tokens off;
+  include /etc/nginx/crm/health-acme.conf;
+  location / {
+    return 308 https://${CRM_DOMAIN}$request_uri;
+  }
+}
+server {
+  listen 443 ssl;
+  listen [::]:443 ssl;
+  http2 on;
+  server_name ${CRM_DOMAIN};
+  server_tokens off;
+  ssl_certificate /etc/letsencrypt/live/${CRM_DOMAIN}/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/${CRM_DOMAIN}/privkey.pem;
+  ssl_protocols TLSv1.2 TLSv1.3;
+  ssl_session_cache shared:CRM_TLS:10m;
+  ssl_session_timeout 1d;
+  ssl_session_tickets off;
+  include /etc/nginx/crm/health-acme.conf;
+  include /etc/nginx/crm/app.conf;
+}
