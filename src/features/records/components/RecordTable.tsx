@@ -107,7 +107,6 @@ function renderTableState(
           <tr>
             <th>ID</th>
             <th>Клиент</th>
-            <th>Трек-номера</th>
             <th>Оплата</th>
             <th>Вес</th>
             <th>Пакет</th>
@@ -115,6 +114,7 @@ function renderTableState(
             <th>Создано</th>
             <th>Обновлено</th>
             <th className="actions-cell" />
+            <th>Трек-номера</th>
           </tr>
         </thead>
         <tbody>
@@ -131,12 +131,6 @@ function renderTableState(
                 </button>
               </td>
               <td>{record.client_code}</td>
-              <td
-                className="track-cell"
-                title={record.track_numbers.join(", ")}
-              >
-                {record.track_numbers.join(", ")}
-              </td>
               <td>
                 <span className="status-badge">
                   {formatRecordPayments(record)}
@@ -192,6 +186,21 @@ function renderTableState(
                     </div>
                   )}
                 </div>
+              </td>
+              <td
+                className="track-cell"
+                title={record.track_numbers.join("\n")}
+              >
+                <span className="record-tracks-summary">
+                  <span className="record-tracks-first">
+                    {record.track_numbers[0] ?? "—"}
+                  </span>
+                  {record.track_numbers.length > 1 && (
+                    <span className="record-tracks-more">
+                      +{record.track_numbers.length - 1} ещё
+                    </span>
+                  )}
+                </span>
               </td>
             </tr>
           ))}
