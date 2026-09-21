@@ -1,6 +1,7 @@
 import { Calculator, FilePenLine, Loader2, Save } from "lucide-react";
 import type { FormEvent } from "react";
 import { PanelHeader } from "../../../shared/components/PanelHeader";
+import { fixTrackKeyboardLayout } from "../../../shared/utils/trackNumbers";
 import {
   calculateTotalPrice,
   formatRecordPrice,
@@ -142,7 +143,9 @@ export function UpdateRecordPanel({
             rows={7}
             value={draft.trackNumbers}
             onChange={(event) =>
-              onDraftChange({ trackNumbers: event.target.value })
+              onDraftChange({
+                trackNumbers: fixTrackKeyboardLayout(event.target.value),
+              })
             }
             placeholder="Оставьте пустым, чтобы не менять"
           />

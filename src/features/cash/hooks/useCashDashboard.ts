@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { useAuth } from "../../auth/context/AuthContext";
 import { usePersistedState } from "../../../shared/hooks/usePersistedState";
 import { readableError } from "../../../shared/utils/errors";
+import { parseDecimalInput } from "../../../shared/utils/number";
 import {
   createCashTransferRequest,
   listTransactionsRequest,
@@ -113,7 +114,7 @@ export function useCashDashboard() {
   const transferMoney = async (event?: FormEvent<HTMLFormElement>) => {
     event?.preventDefault();
 
-    const amount = Number(transferDraft.amount);
+    const amount = parseDecimalInput(transferDraft.amount);
     if (!Number.isFinite(amount) || amount <= 0) {
       setError("Укажите сумму перевода больше нуля.");
       return;

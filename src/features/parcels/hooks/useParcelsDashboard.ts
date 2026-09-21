@@ -5,6 +5,7 @@ import type { RecordEntity } from "../../records/types";
 import { ApiError } from "../../../shared/api/http";
 import { usePersistedState } from "../../../shared/hooks/usePersistedState";
 import { readableError } from "../../../shared/utils/errors";
+import { fixTrackKeyboardLayout } from "../../../shared/utils/trackNumbers";
 import {
   ListMeta,
   ListParcelsResponse,
@@ -145,7 +146,7 @@ export function useParcelsDashboard() {
 
   const findTrack = async (event?: FormEvent<HTMLFormElement>) => {
     event?.preventDefault();
-    const track = searchTrack.trim();
+    const track = fixTrackKeyboardLayout(searchTrack.trim());
     if (!track) {
       setSelectedParcel(null);
       setSelectedRecord(null);

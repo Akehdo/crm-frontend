@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { useAuth } from "../../auth/context/AuthContext";
 import { usePersistedState } from "../../../shared/hooks/usePersistedState";
 import { readableError } from "../../../shared/utils/errors";
+import { parseDecimalInput } from "../../../shared/utils/number";
 import {
   createExpenseRequest,
   deleteExpenseRequest,
@@ -192,7 +193,7 @@ export function useExpensesDashboard() {
 function buildCreatePayload(
   draft: CreateExpenseDraft,
 ): PayloadResult<CreateExpensePayload> {
-  const amount = Number(draft.amount);
+  const amount = parseDecimalInput(draft.amount);
 
   if (!Number.isFinite(amount) || amount <= 0) {
     return { ok: false, error: "Укажите сумму больше нуля." };
@@ -214,7 +215,7 @@ function buildUpdatePayload(
   const payload: UpdateExpensePayload = {};
 
   if (draft.amount.trim()) {
-    const amount = Number(draft.amount);
+    const amount = parseDecimalInput(draft.amount);
     if (!Number.isFinite(amount) || amount <= 0) {
       return { ok: false, error: "Сумма должна быть больше нуля." };
     }

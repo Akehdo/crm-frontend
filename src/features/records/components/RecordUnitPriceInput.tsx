@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { forwardRef } from "react";
 import type { InputHTMLAttributes } from "react";
+import { parseDecimalInput } from "../../../shared/utils/number";
 
 type RecordUnitPriceInputProps = Omit<
   InputHTMLAttributes<HTMLInputElement>,
@@ -19,7 +20,7 @@ export const RecordUnitPriceInput = forwardRef<
   { className, onValueChange, value, ...inputProps },
   ref,
 ): JSX.Element {
-  const numericValue = Number(value);
+  const numericValue = parseDecimalInput(value);
   const cannotDecrease =
     Number.isFinite(numericValue) && numericValue <= UNIT_PRICE_STEP;
 
@@ -43,9 +44,7 @@ export const RecordUnitPriceInput = forwardRef<
           .filter(Boolean)
           .join(" ")}
         inputMode="decimal"
-        min={UNIT_PRICE_STEP}
-        step={UNIT_PRICE_STEP}
-        type="number"
+        type="text"
         value={value}
         onChange={(event) => onValueChange(event.target.value)}
       />

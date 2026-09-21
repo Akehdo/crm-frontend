@@ -1,6 +1,7 @@
 import { Loader2, Search } from "lucide-react";
 import { FormEvent } from "react";
 import { PanelHeader } from "../../../shared/components/PanelHeader";
+import { fixTrackKeyboardLayout } from "../../../shared/utils/trackNumbers";
 import type { RecordEntity } from "../../records/types";
 import { SavingState } from "../hooks/useParcelsDashboard";
 import { Parcel } from "../types";
@@ -31,7 +32,9 @@ export function ParcelSearchPanel({
       <form onSubmit={onSubmit} className="search-form">
         <input
           value={track}
-          onChange={(event) => onTrackChange(event.target.value)}
+          onChange={(event) =>
+            onTrackChange(fixTrackKeyboardLayout(event.target.value))
+          }
           placeholder="Трек-номер"
         />
         <button

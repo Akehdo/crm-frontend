@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import type { KeyboardEventHandler, RefCallback } from "react";
+import { parseDecimalInput } from "../../../shared/utils/number";
 
 export function calculateTotalPrice(
   weightValue: string,
@@ -10,8 +11,8 @@ export function calculateTotalPrice(
     return null;
   }
 
-  const weight = Number(weightValue);
-  const unitPrice = Number(unitPriceValue);
+  const weight = parseDecimalInput(weightValue);
+  const unitPrice = parseDecimalInput(unitPriceValue);
   if (
     !Number.isFinite(weight) ||
     weight <= 0 ||

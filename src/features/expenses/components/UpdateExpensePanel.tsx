@@ -31,9 +31,8 @@ export function UpdateExpensePanel({
         <label>
           Сумма
           <input
-            min="0.01"
-            step="0.01"
-            type="number"
+            inputMode="decimal"
+            type="text"
             value={draft.amount}
             onChange={(event) => onDraftChange({ amount: event.target.value })}
           />

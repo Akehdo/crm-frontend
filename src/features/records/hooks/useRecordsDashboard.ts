@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { useAuth } from "../../auth/context/AuthContext";
 import { usePersistedState } from "../../../shared/hooks/usePersistedState";
 import { readableError } from "../../../shared/utils/errors";
+import { parseDecimalInput } from "../../../shared/utils/number";
 import {
   createRecordRequest,
   deleteRecordRequest,
@@ -366,8 +367,8 @@ function buildCreatePayload(
   draft: CreateRecordDraft,
 ): PayloadResult<CreateRecordPayload> {
   const clientCode = Number(draft.clientCode);
-  const weight = Number(draft.weight);
-  const unitPrice = Number(draft.price);
+  const weight = parseDecimalInput(draft.weight);
+  const unitPrice = parseDecimalInput(draft.price);
   const totalPrice = calculateTotalPrice(
     draft.weight,
     draft.price,
@@ -444,7 +445,7 @@ function buildUpdatePayload(
   }
 
   if (draft.weight.trim()) {
-    const weight = Number(draft.weight);
+    const weight = parseDecimalInput(draft.weight);
     if (!Number.isFinite(weight) || weight <= 0) {
       return { ok: false, error: "Вес должен быть больше нуля." };
     }
@@ -453,7 +454,7 @@ function buildUpdatePayload(
   }
 
   if (draft.price.trim()) {
-    const unitPrice = Number(draft.price);
+    const unitPrice = parseDecimalInput(draft.price);
     if (!Number.isFinite(unitPrice) || unitPrice <= 0) {
       return {
         ok: false,
@@ -507,7 +508,7 @@ function buildPaymentsPayload(payments: PaymentDraft): RecordPayment[] {
       return [];
     }
 
-    const amount = Number(value);
+    const amount = parseDecimalInput(value);
     if (!Number.isFinite(amount) || amount <= 0) {
       return [];
     }
