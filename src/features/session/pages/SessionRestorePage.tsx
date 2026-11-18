@@ -5,8 +5,8 @@ export function SessionRestorePage(): JSX.Element {
     <div className="center-state">
       <Loader2 className="spin" size={28} />
       <div>
-        <h1>Восстанавливаем сессию</h1>
-        <p>Проверяем refresh token и обновляем доступ без повторного входа.</p>
+        <h1>Проверяем вход</h1>
+        <p>Секунду: открываем админ-панель OYU Cargo.</p>
       </div>
     </div>
   );

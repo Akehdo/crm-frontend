@@ -5,20 +5,20 @@ export function usePersistedState<TValue>(
   initialValue: TValue,
 ): [TValue, Dispatch<SetStateAction<TValue>>] {
   const [value, setValue] = useState<TValue>(() => {
-    const raw = localStorage.getItem(key);
-    if (!raw) {
-      return initialValue;
-    }
-
     try {
-      return JSON.parse(raw) as TValue;
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) as TValue : initialValue;
     } catch {
       return initialValue;
     }
   });
 
   useEffect(() => {
-    localStorage.setItem(key, JSON.stringify(value));
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch {
+      // The current tab keeps its state when storage is blocked or full.
+    }
   }, [key, value]);
 
   return [value, setValue];

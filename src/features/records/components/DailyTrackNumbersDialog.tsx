@@ -96,6 +96,7 @@ export function DailyTrackNumbersDialog({
             Дата
             <input
               type="date"
+              disabled={loading}
               value={date}
               onChange={(event) => onDateChange(event.target.value)}
             />

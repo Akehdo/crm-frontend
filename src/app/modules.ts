@@ -1,15 +1,22 @@
 import {
   Banknote,
-  Boxes,
+  ChartNoAxesCombined,
   PackagePlus,
   ReceiptText,
   Search,
+  Users,
   Wallet,
   LucideIcon,
 } from "lucide-react";
 
 export type WorkspaceModuleKey =
-  "operations" | "records" | "expenses" | "cash" | "search";
+  | "operations"
+  | "records"
+  | "clients"
+  | "expenses"
+  | "cash"
+  | "reports"
+  | "search";
 
 export type WorkspaceModule = {
   key: WorkspaceModuleKey;
@@ -32,6 +39,12 @@ export const workspaceModules: WorkspaceModule[] = [
     icon: ReceiptText,
   },
   {
+    key: "clients",
+    label: "Клиенты",
+    description: "Код, телефон, карточка",
+    icon: Users,
+  },
+  {
     key: "expenses",
     label: "Расходы",
     description: "Списания и траты",
@@ -44,14 +57,18 @@ export const workspaceModules: WorkspaceModule[] = [
     icon: Banknote,
   },
   {
+    key: "reports",
+    label: "Отчёты",
+    description: "Продажи за период",
+    icon: ChartNoAxesCombined,
+  },
+  {
     key: "search",
     label: "Поиск",
     description: "Трек-номер и выборка",
     icon: Search,
   },
 ];
-
-export const workspaceBrandIcon = Boxes;
 
 export function isWorkspaceModule(value: string): value is WorkspaceModuleKey {
   return workspaceModules.some((module) => module.key === value);

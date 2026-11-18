@@ -9,6 +9,8 @@ import {
 import type { CashTransferDraft } from "../types";
 
 type CashTransferPanelProps = {
+  disabled: boolean;
+  pending: boolean;
   draft: CashTransferDraft;
   saving: boolean;
   onDraftChange: (patch: Partial<CashTransferDraft>) => void;
@@ -16,6 +18,8 @@ type CashTransferPanelProps = {
 };
 
 export function CashTransferPanel({
+  disabled,
+  pending,
   draft,
   saving,
   onDraftChange,
@@ -32,6 +36,7 @@ export function CashTransferPanel({
           <label>
             Из кассы
             <select
+              disabled={pending || saving}
               value={draft.fromPaymentType}
               onChange={(event) =>
                 onDraftChange({
@@ -53,6 +58,7 @@ export function CashTransferPanel({
           <label>
             В кассу
             <select
+              disabled={pending || saving}
               value={draft.toPaymentType}
               onChange={(event) =>
                 onDraftChange({
@@ -75,6 +81,7 @@ export function CashTransferPanel({
         <label>
           Сумма
           <input
+            disabled={pending || saving}
             inputMode="decimal"
             type="text"
             value={draft.amount}
@@ -85,7 +92,7 @@ export function CashTransferPanel({
 
         <button
           className="primary-button"
-          disabled={saving || draft.fromPaymentType === draft.toPaymentType}
+          disabled={disabled || saving || draft.fromPaymentType === draft.toPaymentType}
           type="submit"
         >
           {saving ? (
@@ -93,7 +100,7 @@ export function CashTransferPanel({
           ) : (
             <ArrowRightLeft size={18} />
           )}
-          Перевести
+          {pending ? "Проверить результат перевода" : "Перевести"}
         </button>
       </form>
     </div>

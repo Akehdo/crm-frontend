@@ -150,7 +150,12 @@ function renderTableState(
                         type="button"
                         onClick={() => {
                           setOpenExpenseId(null);
-                          void onDelete(expense.id);
+                          const confirmed = window.confirm(
+                            `Удалить расход ${expense.amount.toLocaleString("ru-RU")} ₸ «${expense.comment}»? Отменить удаление нельзя.`,
+                          );
+                          if (confirmed) {
+                            void onDelete(expense.id);
+                          }
                         }}
                       >
                         {saving === "delete" ? (

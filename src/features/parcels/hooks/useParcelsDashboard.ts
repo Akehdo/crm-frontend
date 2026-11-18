@@ -1,5 +1,7 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../../auth/context/AuthContext";
+import { findTrackOwnerRequest } from "../../clients/api/clientsApi";
+import type { TrackOwner } from "../../clients/types";
 import { findRecordByTrackNumberRequest } from "../../records/api/recordsApi";
 import type { RecordEntity } from "../../records/types";
 import { ApiError } from "../../../shared/api/http";
@@ -47,10 +49,15 @@ export function useParcelsDashboard() {
     total: 0,
     total_pages: 0,
   });
-  const [selectedParcel, setSelectedParcel] = useState<Parcel | null>(null);
-  const [selectedRecord, setSelectedRecord] = useState<RecordEntity | null>(
-    null,
-  );
+  const searchRequest = useRef(0);
+  useEffect(() => () => { searchRequest.current += 1; }, []);
+  const [selection, setSelection] = useState<{
+    track: string;
+    parcel: Parcel | null;
+    record: RecordEntity | null;
+    owner: TrackOwner | null;
+    recordMissing: boolean;
+  } | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState<SavingState>("");
   const [error, setError] = useState("");
@@ -100,12 +107,12 @@ export function useParcelsDashboard() {
     setNotice("");
 
     try {
-      await api("/parcels", {
+      const result = await api<{ created: number; skipped: number }>("/parcels", {
         method: "POST",
         body: { track_numbers: trackNumbers },
       });
       setCreateDraft("");
-      setNotice(`Добавлено: ${trackNumbers.length}`);
+      setNotice(`Добавлено: ${result.created}. Пропущено: ${result.skipped}.`);
       if (page === 1) {
         await loadParcels();
       } else {
@@ -130,12 +137,29 @@ export function useParcelsDashboard() {
     setNotice("");
 
     try {
-      await api("/parcels/status", {
+      const result = await api<{
+        created: number;
+        skipped: string[];
+        updated: number;
+      }>("/parcels/status", {
         method: "PUT",
         body: { track_numbers: trackNumbers, status: statusTarget },
       });
-      setStatusDraft("");
-      setNotice(`Обновлено: ${trackNumbers.length}`);
+      const skipped = result.skipped ?? [];
+      // Parcels of an issuance keep "issued": keep them in the draft so the
+      // operator sees exactly which tracks were not changed.
+      setStatusDraft(skipped.join("\n"));
+      setNotice(
+        [
+          `Обновлено: ${result.updated ?? 0}`,
+          `новых: ${result.created ?? 0}`,
+          skipped.length > 0
+            ? `пропущено выданных: ${skipped.length} (измените или удалите выдачу)`
+            : "",
+        ]
+          .filter(Boolean)
+          .join(", "),
+      );
       await loadParcels();
     } catch (err) {
       setError(readableError(err));
@@ -144,73 +168,86 @@ export function useParcelsDashboard() {
     }
   };
 
-  const findTrack = async (event?: FormEvent<HTMLFormElement>) => {
-    event?.preventDefault();
-    const track = fixTrackKeyboardLayout(searchTrack.trim());
+  const lookupTrack = async (
+    track: string,
+    knownParcel?: Parcel,
+    onRecordOpen?: (record: RecordEntity) => void,
+  ) => {
+    const current = ++searchRequest.current;
+    setSelection(null);
+    setError("");
+    setNotice("");
     if (!track) {
-      setSelectedParcel(null);
-      setSelectedRecord(null);
+      setSaving("");
       return;
     }
 
     setSaving("search");
-    setError("");
-    setSelectedParcel(null);
-    setSelectedRecord(null);
-
-    try {
-      const payload = await api<Parcel>(
-        `/parcels/${encodeURIComponent(track)}`,
-      );
-      setSelectedParcel(payload);
-
-      try {
-        setSelectedRecord(await findRecordByTrackNumberRequest(api, track));
-      } catch {
-        setSelectedRecord(null);
-      }
-    } catch (err) {
-      setError(readableError(err));
-    } finally {
-      setSaving("");
+    const [parcel, record, owner] = await Promise.allSettled([
+      knownParcel ? Promise.resolve(knownParcel) : api<Parcel>(`/parcels/${encodeURIComponent(track)}`),
+      findRecordByTrackNumberRequest(api, track),
+      findTrackOwnerRequest(api, track),
+    ]);
+    if (current !== searchRequest.current) return;
+    setSaving("");
+    const selectedRecord = record.status === "fulfilled" ? record.value : null;
+    setSelection({
+      track,
+      parcel: parcel.status === "fulfilled" ? parcel.value : null,
+      record: selectedRecord,
+      owner: owner.status === "fulfilled" ? owner.value : null,
+      recordMissing: record.status === "rejected" && isNotFound(record.reason),
+    });
+    if (onRecordOpen && selectedRecord) {
+      onRecordOpen(selectedRecord);
+      return;
+    }
+    const errors: string[] = [];
+    if (parcel.status === "rejected" && !isNotFound(parcel.reason)) {
+      errors.push(`Не удалось загрузить посылку. ${readableError(parcel.reason)}`);
+    }
+    if (record.status === "rejected" && !isNotFound(record.reason)) {
+      errors.push(`Не удалось проверить выдачу. ${readableError(record.reason)}`);
+    }
+    if (owner.status === "rejected" && !isNotFound(owner.reason)) {
+      errors.push(`Не удалось определить владельца. ${readableError(owner.reason)}`);
+    }
+    if (errors.length) {
+      setError(errors.join(" "));
+    } else if (parcel.status === "rejected" && owner.status === "fulfilled") {
+      setNotice("Посылка ещё не поступила на склад, но клиент уже добавил трек.");
+    } else if (parcel.status === "rejected") {
+      setError(readableError(parcel.reason));
+    }
+    if (knownParcel) {
+      requestAnimationFrame(() => {
+        if (current === searchRequest.current) {
+          document.getElementById("parcel-search-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      });
     }
   };
 
-  const openRecordForParcel = async (
-    parcel: Parcel,
-    onRecordOpen: (record: RecordEntity) => void,
-  ) => {
-    setSaving("search");
+  const findTrack = async (event?: FormEvent<HTMLFormElement>) => {
+    event?.preventDefault();
+    return lookupTrack(fixTrackKeyboardLayout(searchTrack.trim()));
+  };
+
+  const openRecordForParcel = (parcel: Parcel, onRecordOpen: (record: RecordEntity) => void) => {
+    setSearchTrack(parcel.track_number);
+    return lookupTrack(parcel.track_number, parcel, onRecordOpen);
+  };
+
+  const changeSearchTrack = (value: string) => {
+    searchRequest.current += 1;
+    setSelection(null);
+    setSaving("");
     setError("");
     setNotice("");
-    setSearchTrack(parcel.track_number);
-    setSelectedParcel(parcel);
-    setSelectedRecord(null);
-
-    try {
-      const record = await findRecordByTrackNumberRequest(
-        api,
-        parcel.track_number,
-      );
-      setSelectedRecord(record);
-      onRecordOpen(record);
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 404) {
-        setNotice("Для этой посылки выдача ещё не создана.");
-      } else {
-        setError(readableError(err));
-      }
-
-      requestAnimationFrame(() => {
-        document.getElementById("parcel-search-panel")?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-      });
-    } finally {
-      setSaving("");
-    }
+    setSearchTrack(value);
   };
+
+  const selected = selection?.track === fixTrackKeyboardLayout(searchTrack.trim()) ? selection : null;
 
   return {
     createDraft,
@@ -227,16 +264,22 @@ export function useParcelsDashboard() {
     parcels,
     saving,
     searchTrack,
-    selectedParcel,
-    selectedRecord,
+    selectedParcel: selected?.parcel ?? null,
+    selectedRecord: selected?.record ?? null,
+    trackOwner: selected?.owner ?? null,
+    recordMissing: selected?.recordMissing ?? false,
     setCreateDraft,
     setFilter,
     setPage,
-    setSearchTrack,
+    setSearchTrack: changeSearchTrack,
     setStatusDraft,
     setStatusTarget,
     statusDraft,
     statusTarget,
     updateStatuses,
   };
+}
+
+function isNotFound(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 404;
 }

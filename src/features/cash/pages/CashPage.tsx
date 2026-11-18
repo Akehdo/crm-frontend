@@ -24,6 +24,7 @@ import { transactionTypeLabels, transactionTypeOptions } from "../types";
 
 export function CashPage(): JSX.Element {
   const cash = useCashDashboard();
+  const { summary } = cash;
 
   return (
     <main className="dashboard">
@@ -38,26 +39,26 @@ export function CashPage(): JSX.Element {
         <MetricCard
           label="Общие деньги"
           value={
-            <span className={cash.summary.balance < 0 ? "cash-negative" : ""}>
-              {formatMoney(cash.summary.balance)}
+            <span className={summary && summary.balance < 0 ? "cash-negative" : ""}>
+              {formatMoney(summary?.balance)}
             </span>
           }
         />
         <MetricCard
           label="Прибыль за период"
           value={
-            <span className={cash.summary.profit < 0 ? "cash-negative" : ""}>
-              {formatMoney(cash.summary.profit)}
+            <span className={summary && summary.profit < 0 ? "cash-negative" : ""}>
+              {formatMoney(summary?.profit)}
             </span>
           }
         />
         <MetricCard
           label="Доход за период"
-          value={formatMoney(cash.summary.income)}
+          value={formatMoney(summary?.income)}
         />
         <MetricCard
           label="Расход за период"
-          value={formatMoney(cash.summary.expense)}
+          value={formatMoney(summary?.expense)}
         />
       </section>
 
@@ -65,14 +66,14 @@ export function CashPage(): JSX.Element {
         <h2>Остатки по кассам</h2>
         <div className="stats-grid">
           {paymentTypes.map((paymentType) => {
-            const balance = cash.summary.balances[paymentType.value];
+            const balance = summary?.balances[paymentType.value];
 
             return (
               <MetricCard
                 key={paymentType.value}
                 label={paymentType.label}
                 value={
-                  <span className={balance < 0 ? "cash-negative" : ""}>
+                  <span className={balance !== undefined && balance < 0 ? "cash-negative" : ""}>
                     {formatMoney(balance)}
                   </span>
                 }
@@ -84,6 +85,8 @@ export function CashPage(): JSX.Element {
 
       <section className="single-column-grid">
         <CashTransferPanel
+          disabled={!summary && !cash.transferPending}
+          pending={cash.transferPending}
           draft={cash.transferDraft}
           saving={cash.transferring}
           onDraftChange={cash.changeTransferDraft}
@@ -101,7 +104,7 @@ export function CashPage(): JSX.Element {
         <PanelHeader
           icon={<WalletCards size={18} />}
           title="Движение денег"
-          meta={`${cash.meta.total} операций`}
+          meta={summary ? `${cash.meta.total} операций` : undefined}
         />
 
         <CashFilters
@@ -116,13 +119,15 @@ export function CashPage(): JSX.Element {
           onTransactionTypeFilterChange={cash.setTransactionTypeFilter}
         />
 
-        <CashTable
-          loading={cash.loading}
-          meta={cash.meta}
-          page={cash.page}
-          setPage={cash.setPage}
-          transactions={cash.transactions}
-        />
+        {(summary || cash.loading) && (
+          <CashTable
+            loading={cash.loading}
+            meta={cash.meta}
+            page={cash.page}
+            setPage={cash.setPage}
+            transactions={cash.transactions}
+          />
+        )}
       </section>
     </main>
   );
@@ -158,6 +163,7 @@ function CashFilters({
           С
           <input
             type="date"
+            max={dateTo || undefined}
             value={dateFrom}
             onChange={(event) => onDateFromChange(event.target.value)}
           />
@@ -166,6 +172,7 @@ function CashFilters({
           По
           <input
             type="date"
+            min={dateFrom || undefined}
             value={dateTo}
             onChange={(event) => onDateToChange(event.target.value)}
           />
@@ -236,9 +243,17 @@ function CashTable({
   setPage,
   transactions,
 }: CashTableProps): JSX.Element {
+  if (loading) {
+    return (
+      <div className="table-state" role="status">
+        <Loader2 className="spin" size={22} />
+        Загружаем
+      </div>
+    );
+  }
   return (
     <>
-      {renderTableState(loading, transactions)}
+      {renderTableState(transactions)}
       <div className="pagination">
         <button
           className="icon-button"
@@ -266,19 +281,7 @@ function CashTable({
   );
 }
 
-function renderTableState(
-  loading: boolean,
-  transactions: CashTransaction[],
-): JSX.Element {
-  if (loading) {
-    return (
-      <div className="table-state">
-        <Loader2 className="spin" size={22} />
-        Загружаем
-      </div>
-    );
-  }
-
+function renderTableState(transactions: CashTransaction[]): JSX.Element {
   if (transactions.length === 0) {
     return <div className="table-state">Нет операций</div>;
   }
@@ -345,7 +348,8 @@ function transactionSource(transaction: CashTransaction): string {
   return "Перевод между кассами";
 }
 
-function formatMoney(value: number): string {
+function formatMoney(value: number | undefined): string {
+  if (value === undefined) return "—";
   return new Intl.NumberFormat("ru-RU", {
     maximumFractionDigits: 2,
     minimumFractionDigits: 0,

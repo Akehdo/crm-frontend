@@ -1,12 +1,14 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useAuth } from "../../auth/context/AuthContext";
 import { usePersistedState } from "../../../shared/hooks/usePersistedState";
 import { readableError } from "../../../shared/utils/errors";
+import { ApiError } from "../../../shared/api/http";
 import { parseDecimalInput } from "../../../shared/utils/number";
 import {
   createRecordRequest,
   deleteRecordRequest,
+  getRecordRequest,
   listDailyTrackNumbersRequest,
   listRecordsRequest,
   updateRecordRequest,
@@ -25,6 +27,7 @@ import type {
   UpdateRecordDraft,
   UpdateRecordPayload,
 } from "../types";
+import { businessToday, isCalendarDate } from "../../../shared/utils/businessDate";
 import {
   initialPaymentDraft,
   initialRecordDraft,
@@ -64,10 +67,11 @@ export function useRecordsDashboard() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [dailyTracksOpen, setDailyTracksOpen] = useState(false);
-  const [dailyTrackDate, setDailyTrackDate] = useState(currentLocalDate);
+  const [dailyTrackDate, setDailyTrackDate] = useState(() => businessToday());
   const [dailyTrackNumbers, setDailyTrackNumbers] = useState<string[]>([]);
   const [dailyTracksLoading, setDailyTracksLoading] = useState(false);
   const [dailyTracksError, setDailyTracksError] = useState("");
+  const selection = useRef(0);
   const normalizedCreateDraft = normalizeCreateRecordDraft(createDraft);
   const normalizedUpdateDraft = normalizeUpdateRecordDraft(updateDraft);
 
@@ -87,6 +91,11 @@ export function useRecordsDashboard() {
   };
 
   const changeUpdateDraft = (patch: Partial<UpdateRecordDraft>) => {
+    if (patch.id !== undefined && patch.id !== updateDraft.id) {
+      selection.current += 1;
+      setUpdateDraft({ ...initialUpdateRecordDraft, id: patch.id });
+      return;
+    }
     setUpdateDraft((current) => ({
       ...normalizeUpdateRecordDraft(current),
       ...patch,
@@ -116,6 +125,10 @@ export function useRecordsDashboard() {
   }, [loadRecords]);
 
   const loadDailyTrackNumbers = async (date = dailyTrackDate) => {
+    if (!isCalendarDate(date)) {
+      setDailyTracksError("Укажите корректную дату.");
+      return;
+    }
     setDailyTracksLoading(true);
     setDailyTracksError("");
 
@@ -155,7 +168,11 @@ export function useRecordsDashboard() {
     setNotice("");
 
     try {
-      const record = await createRecordRequest(api, result.payload);
+      const record = await withOwnerConfirmation((confirmed) => createRecordRequest(api, {
+        ...result.payload,
+        ...(confirmed && { confirm_track_reassignment: true }),
+      }));
+      if (!record) return;
       setCreateDraft(initialRecordDraft);
       setNotice(`Запись создана: ${record.id}`);
       if (page === 1) {
@@ -185,27 +202,36 @@ export function useRecordsDashboard() {
       return;
     }
 
+    const current = selection.current;
     setSaving("update");
     setError("");
     setNotice("");
 
     try {
-      const record = await updateRecordRequest(api, id, result.payload);
-      setUpdateDraft(initialUpdateRecordDraft);
+      const record = await withOwnerConfirmation((confirmed) => updateRecordRequest(api, id, {
+        ...result.payload,
+        ...(confirmed && { confirm_track_reassignment: true }),
+      }));
+      if (!record) return;
+      if (current === selection.current) setUpdateDraft(initialUpdateRecordDraft);
       setNotice(`Запись обновлена: ${record.id}`);
       await loadRecords();
     } catch (err) {
-      setError(readableError(err));
+      setError(err instanceof ApiError && err.code === "STALE_RECORD"
+        ? "Запись изменил другой оператор. Загрузите актуальную запись и проверьте изменения."
+        : readableError(err));
     } finally {
       setSaving("");
     }
   };
 
   const selectRecordForUpdate = (record: RecordEntity) => {
+    selection.current += 1;
     const packageType = record.package_type ?? "none";
 
     setUpdateDraft({
       id: record.id,
+      original: record,
       clientCode: String(record.client_code),
       trackNumbers: record.track_numbers.join("\n"),
       weight: String(record.weight),
@@ -231,13 +257,30 @@ export function useRecordsDashboard() {
     });
   };
 
+  const reloadRecord = async () => {
+    const id = updateDraft.id.trim();
+    if (!id) return;
+    const current = ++selection.current;
+    setSaving("update");
+    setError("");
+    try {
+      const record = await getRecordRequest(api, id);
+      if (current === selection.current) selectRecordForUpdate(record);
+    } catch (err) {
+      if (current === selection.current) setError(readableError(err));
+    } finally {
+      setSaving("");
+    }
+  };
+
   const deleteRecord = async (id: string) => {
     setSaving("delete");
     setError("");
     setNotice("");
 
     try {
-      const record = await deleteRecordRequest(api, id);
+      const record = await withOwnerConfirmation((confirmed) => deleteRecordRequest(api, id, confirmed));
+      if (!record) return;
       if (normalizedUpdateDraft.id.trim() === record.id) {
         setUpdateDraft(initialUpdateRecordDraft);
       }
@@ -275,6 +318,7 @@ export function useRecordsDashboard() {
     notice,
     page,
     records,
+    reloadRecord,
     saving,
     deleteRecord,
     selectRecordForUpdate,
@@ -285,14 +329,6 @@ export function useRecordsDashboard() {
     updateRecord,
     openDailyTracks,
   };
-}
-
-function currentLocalDate(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
 }
 
 function normalizeCreateRecordDraft(
@@ -397,6 +433,9 @@ function buildCreatePayload(
     return { ok: false, error: "Итоговая цена должна быть больше нуля." };
   }
 
+  if (!payments) {
+    return { ok: false, error: "Укажите сумму оплаты с точностью до двух знаков после запятой." };
+  }
   if (payments.length === 0) {
     return { ok: false, error: "Укажите хотя бы одну оплату." };
   }
@@ -424,7 +463,11 @@ function buildCreatePayload(
 function buildUpdatePayload(
   draft: UpdateRecordDraft,
 ): PayloadResult<UpdateRecordPayload> {
-  const payload: UpdateRecordPayload = {};
+  const original = draft.original;
+  if (!original?.updated_at || original.id !== draft.id.trim()) {
+    return { ok: false, error: "Загрузите актуальную запись по ID перед редактированием." };
+  }
+  const changes: Partial<CreateRecordPayload> = {};
 
   if (draft.clientCode.trim()) {
     const clientCode = Number(draft.clientCode);
@@ -432,7 +475,9 @@ function buildUpdatePayload(
       return { ok: false, error: "Код клиента должен быть больше нуля." };
     }
 
-    payload.client_code = clientCode;
+    if (clientCode !== original.client_code) {
+      changes.client_code = clientCode;
+    }
   }
 
   if (draft.trackNumbers.trim()) {
@@ -441,7 +486,12 @@ function buildUpdatePayload(
       return { ok: false, error: "Добавьте хотя бы один трек-номер." };
     }
 
-    payload.track_numbers = trackNumbers;
+    if (
+      trackNumbers.length !== original.track_numbers.length ||
+      trackNumbers.some((track, i) => track !== original.track_numbers[i])
+    ) {
+      changes.track_numbers = trackNumbers;
+    }
   }
 
   if (draft.weight.trim()) {
@@ -450,76 +500,102 @@ function buildUpdatePayload(
       return { ok: false, error: "Вес должен быть больше нуля." };
     }
 
-    payload.weight = weight;
+    if (weight !== original.weight) {
+      changes.weight = weight;
+    }
   }
 
-  if (draft.price.trim()) {
-    const unitPrice = parseDecimalInput(draft.price);
-    if (!Number.isFinite(unitPrice) || unitPrice <= 0) {
-      return {
-        ok: false,
-        error: "Цена за единицу веса должна быть больше нуля.",
-      };
-    }
-
+  const originalPackage = original.package_type ?? "none";
+  const selectedPackage = draft.packageType || originalPackage;
+  if (selectedPackage !== originalPackage) {
+    changes.package_type = selectedPackage;
+  }
+  const initialUnitPrice = totalPriceToUnitPrice(
+    original.price, original.weight, packagePrices[originalPackage],
+  );
+  const unitPrice = draft.price.trim() || initialUnitPrice;
+  if (
+    changes.weight !== undefined || changes.package_type !== undefined ||
+    parseDecimalInput(unitPrice) !== Number(initialUnitPrice)
+  ) {
     const totalPrice = calculateTotalPrice(
-      draft.weight,
-      draft.price,
-      draft.packageType ? packagePrices[draft.packageType] : 0,
+      String(changes.weight ?? original.weight),
+      unitPrice,
+      packagePrices[selectedPackage],
     );
     if (totalPrice === null || totalPrice <= 0) {
-      return { ok: false, error: "Укажите вес для расчёта итоговой цены." };
+      return { ok: false, error: "Укажите корректные вес и цену для расчёта." };
     }
 
-    payload.price = totalPrice;
-  }
-
-  if (draft.packageType) {
-    payload.package_type = draft.packageType;
-  }
-
-  const payments = buildPaymentsPayload(draft.payments);
-  if (payments.length > 0) {
-    const price = payload.price;
-    if (price === undefined || !Number.isFinite(price) || price <= 0) {
-      return { ok: false, error: "Укажите вес и цену для обновления оплат." };
+    if (totalPrice !== original.price) {
+      changes.price = totalPrice;
     }
+  }
 
-    if (!isSameAmount(paymentsTotal(payments), price)) {
+  const initialPayments = paymentsToDraft(original.payments, original.price, original.payment_type);
+  const paymentsChanged = Object.entries(draft.payments).some(([key, value]) =>
+    parseDecimalInput(value.trim() || "0") !==
+    parseDecimalInput(initialPayments[key as keyof PaymentDraft].trim() || "0"));
+  if (paymentsChanged || changes.price !== undefined) {
+    const payments = buildPaymentsPayload(draft.payments);
+    if (!payments) {
+      return { ok: false, error: "Укажите сумму оплаты с точностью до двух знаков после запятой." };
+    }
+    if (payments.length === 0 || !isSameAmount(paymentsTotal(payments), changes.price ?? original.price)) {
       return {
         ok: false,
         error: "Сумма оплат должна совпадать с итоговой ценой.",
       };
     }
 
-    payload.payments = payments;
+    if (paymentsChanged) {
+      changes.payments = payments;
+    }
   }
 
-  if (Object.keys(payload).length === 0) {
-    return { ok: false, error: "Заполните хотя бы одно поле для обновления." };
+  if (Object.keys(changes).length === 0) {
+    return { ok: false, error: "Изменений для сохранения нет." };
   }
 
-  return { ok: true, payload };
+  return { ok: true, payload: { ...changes, expected_updated_at: original.updated_at } };
 }
 
-function buildPaymentsPayload(payments: PaymentDraft): RecordPayment[] {
-  return Object.entries(payments).flatMap(([paymentType, value]) => {
-    if (!value.trim()) {
-      return [];
+async function withOwnerConfirmation(
+  save: (confirmed: boolean) => Promise<RecordEntity>,
+): Promise<RecordEntity | null> {
+  try {
+    return await save(false);
+  } catch (err) {
+    if (!(err instanceof ApiError) || err.status !== 409 || err.code !== "TRACK_OWNER_CONFLICT") {
+      throw err;
     }
-
-    const amount = parseDecimalInput(value);
-    if (!Number.isFinite(amount) || amount <= 0) {
-      return [];
+    const tracks = err.trackNumbers?.join(", ") ?? "";
+    const warning = [
+      err.message,
+      tracks,
+      "Прежняя привязка будет снята. Личные заметки прежнего владельца не передаются новому клиенту.",
+      "Если новый код не зарегистрирован, трек останется только в выдаче.",
+      "Подтвердить перенос?",
+    ].filter(Boolean).join("\n");
+    if (!window.confirm(warning)) {
+      return null;
     }
+    return save(true);
+  }
+}
 
-    return [
-      {
-        amount,
-        payment_type: paymentType as RecordPayment["payment_type"],
-      },
-    ];
-  });
+function buildPaymentsPayload(payments: PaymentDraft): RecordPayment[] | null {
+  const entries: RecordPayment[] = [];
+  for (const [paymentType, value] of Object.entries(payments)) {
+    const amount = parseDecimalInput(value.trim() || "0");
+    if (!Number.isFinite(amount) || amount < 0 || amount !== Number(amount.toFixed(2))) {
+      return null;
+    }
+    if (amount > 0) {
+      entries.push({ amount, payment_type: paymentType as RecordPayment["payment_type"] });
+    }
+  }
+  return entries;
 }
 
 function paymentsTotal(payments: RecordPayment[]): number {

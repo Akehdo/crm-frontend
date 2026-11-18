@@ -173,7 +173,19 @@ function renderTableState(
                         type="button"
                         onClick={() => {
                           setOpenRecordId(null);
-                          void onDelete(record.id);
+                          const tracks = record.track_numbers;
+                          const confirmed = window.confirm(
+                            [
+                              `Удалить выдачу клиента ${record.client_code}?`,
+                              `Сумма: ${record.price.toLocaleString("ru-RU")} ₸, вес: ${record.weight.toLocaleString("ru-RU")} кг.`,
+                              `Треки (${tracks.length}): ${tracks.slice(0, 5).join(", ")}${tracks.length > 5 ? "…" : ""}`,
+                              "",
+                              "Оплаты будут удалены из кассы, посылкам вернётся статус до выдачи. Отменить удаление нельзя.",
+                            ].join("\n"),
+                          );
+                          if (confirmed) {
+                            void onDelete(record.id);
+                          }
                         }}
                       >
                         {saving === "delete" ? (

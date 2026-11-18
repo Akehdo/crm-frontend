@@ -2,6 +2,8 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
+  // Mounted under /admin on the OYU Cargo platform (the cabinet owns "/").
+  base: "/admin/",
   plugins: [react()],
   server: {
     host: "0.0.0.0",

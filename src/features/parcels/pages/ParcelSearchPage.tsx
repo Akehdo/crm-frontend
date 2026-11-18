@@ -5,10 +5,12 @@ import { useParcelsDashboard } from "../hooks/useParcelsDashboard";
 import type { RecordEntity } from "../../records/types";
 
 type ParcelSearchPageProps = {
+  onClientOpen: (code: number) => void;
   onRecordOpen: (record: RecordEntity) => void;
 };
 
 export function ParcelSearchPage({
+  onClientOpen,
   onRecordOpen,
 }: ParcelSearchPageProps): JSX.Element {
   const parcels = useParcelsDashboard();
@@ -26,8 +28,11 @@ export function ParcelSearchPage({
         <ParcelSearchPanel
           selectedParcel={parcels.selectedParcel}
           selectedRecord={parcels.selectedRecord}
+          recordMissing={parcels.recordMissing}
           saving={parcels.saving}
           track={parcels.searchTrack}
+          trackOwner={parcels.trackOwner}
+          onClientOpen={onClientOpen}
           onRecordOpen={onRecordOpen}
           onSubmit={parcels.findTrack}
           onTrackChange={parcels.setSearchTrack}

@@ -20,6 +20,7 @@ export type CreateRecordDraft = {
 export type UpdateRecordDraft = Omit<CreateRecordDraft, "packageType"> & {
   id: string;
   packageType: PackageType | "";
+  original?: RecordEntity;
 };
 
 export type RecordEntity = {
@@ -53,6 +54,7 @@ export type DailyTrackNumbersResponse = {
 };
 
 export type CreateRecordPayload = {
+  confirm_track_reassignment?: boolean;
   client_code: number;
   track_numbers: string[];
   weight: number;
@@ -62,7 +64,9 @@ export type CreateRecordPayload = {
   payments: RecordPayment[];
 };
 
-export type UpdateRecordPayload = Partial<CreateRecordPayload>;
+export type UpdateRecordPayload = Partial<CreateRecordPayload> & {
+  expected_updated_at: string;
+};
 
 export const paymentTypeLabels: Record<PaymentType, string> = {
   kaspiQR: "Kaspi QR",
@@ -79,16 +83,16 @@ export const paymentTypes = Object.entries(paymentTypeLabels).map(
 
 export const packageTypeLabels: Record<PackageType, string> = {
   none: "Без пакета",
-  large: "Большой — 30",
+  large: "Большой — 50",
   medium: "Средний — 40",
-  small: "Маленький — 50",
+  small: "Маленький — 30",
 };
 
 export const packagePrices: Record<PackageType, number> = {
   none: 0,
-  large: 30,
+  large: 50,
   medium: 40,
-  small: 50,
+  small: 30,
 };
 
 export const packageTypes = Object.entries(packageTypeLabels).map(

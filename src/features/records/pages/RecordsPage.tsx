@@ -69,6 +69,7 @@ export function RecordsPage({
           draft={records.updateDraft}
           saving={records.saving === "update"}
           onDraftChange={records.changeUpdateDraft}
+          onReload={records.reloadRecord}
           onSubmit={records.updateRecord}
         />
       </section>

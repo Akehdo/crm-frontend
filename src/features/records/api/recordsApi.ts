@@ -64,6 +64,10 @@ export function createRecordRequest(
   });
 }
 
+export function getRecordRequest(api: ApiClient, id: string): Promise<RecordEntity> {
+  return api<RecordEntity>(`/records/${encodeURIComponent(id)}`);
+}
+
 export function updateRecordRequest(
   api: ApiClient,
   id: string,
@@ -78,8 +82,10 @@ export function updateRecordRequest(
 export function deleteRecordRequest(
   api: ApiClient,
   id: string,
+  confirmTrackReassignment = false,
 ): Promise<RecordEntity> {
-  return api<RecordEntity>(`/records/${encodeURIComponent(id)}`, {
+  const query = confirmTrackReassignment ? "?confirm_track_reassignment=true" : "";
+  return api<RecordEntity>(`/records/${encodeURIComponent(id)}${query}`, {
     method: "DELETE",
   });
 }

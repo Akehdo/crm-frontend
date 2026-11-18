@@ -59,9 +59,11 @@ export function listTransactionsRequest(
 export function createCashTransferRequest(
   api: ApiClient,
   payload: CashTransferPayload,
+  key: string,
 ): Promise<CashTransferResponse> {
   return api<CashTransferResponse>("/transactions/transfer", {
     body: payload,
+    headers: { "Idempotency-Key": key },
     method: "POST",
   });
 }

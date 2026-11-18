@@ -6,12 +6,14 @@ import { StatusBadge } from "./StatusBadge";
 type ParcelPreviewProps = {
   parcel: Parcel;
   record: RecordEntity | null;
+  recordMissing: boolean;
   onRecordOpen: (record: RecordEntity) => void;
 };
 
 export function ParcelPreview({
   parcel,
   record,
+  recordMissing,
   onRecordOpen,
 }: ParcelPreviewProps): JSX.Element {
   return (
@@ -38,7 +40,7 @@ export function ParcelPreview({
           </button>
         </div>
       )}
-      {!record && (
+      {recordMissing && (
         <div className="parcel-record-reference parcel-record-missing">
           Выдача ещё не создана
         </div>

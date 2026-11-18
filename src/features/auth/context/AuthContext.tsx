@@ -17,19 +17,20 @@ import {
 import {
   AuthTokens,
   clearStoredTokens,
+  createSessionRefresh,
+  REFRESH_RETRY_MS,
+  sessionKey,
   decodeJwtExpiration,
+  decodeJwtRole,
   getStoredTokens,
+  PlatformRole,
   setStoredTokens,
+  TOKEN_STORAGE_KEY,
 } from "../lib/tokenStorage";
 
 type AuthTokensResponse = {
   access_token: string;
   refresh_token: string;
-};
-
-type AuthCredentials = {
-  email: string;
-  password: string;
 };
 
 type AuthApiOptions = ApiRequestOptions & {
@@ -43,7 +44,8 @@ type AuthContextValue = {
   ) => Promise<TResponse>;
   bootstrapping: boolean;
   isAuthenticated: boolean;
-  login: (credentials: AuthCredentials) => Promise<void>;
+  /** admin = staff; anyone else may not use the admin panel. */
+  role: PlatformRole | null;
   logout: () => Promise<void>;
   refreshSession: () => Promise<AuthTokens>;
   sessionMessage: string;
@@ -58,7 +60,7 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
   const [bootstrapping, setBootstrapping] = useState(Boolean(initialTokens));
   const [sessionMessage, setSessionMessage] = useState("");
   const tokensRef = useRef<AuthTokens | null>(initialTokens);
-  const refreshPromiseRef = useRef<Promise<AuthTokens> | null>(null);
+  const accountSession = sessionKey(tokens);
 
   const setTokens = useCallback((nextTokens: AuthTokens | null) => {
     tokensRef.current = nextTokens;
@@ -79,83 +81,74 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
     [setTokens],
   );
 
-  const refreshSession = useCallback(async () => {
-    if (refreshPromiseRef.current) {
-      return refreshPromiseRef.current;
-    }
-
-    const refreshToken = tokensRef.current?.refreshToken;
-    if (!refreshToken) {
-      clearSession("Войдите, чтобы продолжить.");
-      throw new SessionExpiredError();
-    }
-
-    refreshPromiseRef.current = request<AuthTokensResponse>("/auth/refresh", {
+  const readCurrent = useCallback(() => getStoredTokens(tokensRef.current), []);
+  const rotate = useMemo(() => createSessionRefresh(
+    readCurrent,
+    async (token) => normalizeTokens(await request<AuthTokensResponse>("/auth/refresh", {
       method: "POST",
-      body: { refresh_token: refreshToken },
-    })
-      .then((payload) => {
-        const nextTokens = normalizeTokens(payload);
-        setTokens(nextTokens);
-        setSessionMessage("");
-        return nextTokens;
-      })
-      .catch((error: unknown) => {
-        clearSession("Сессия истекла. Войдите снова.");
-        throw error;
-      })
-      .finally(() => {
-        refreshPromiseRef.current = null;
-      });
+      body: { refresh_token: token },
+    })),
+    setTokens,
+  ), [readCurrent, setTokens]);
 
-    return refreshPromiseRef.current;
-  }, [clearSession, setTokens]);
+  const refreshSession = useCallback(async (expected = tokensRef.current) => {
+    if (!expected) throw new SessionExpiredError();
+    try {
+      const result = await rotate(expected);
+      if (!result) throw new SessionExpiredError();
+      return result;
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401 &&
+          readCurrent()?.refreshToken === expected.refreshToken) {
+        clearSession("Сессия истекла. Войдите снова.");
+      }
+      throw error;
+    }
+  }, [clearSession, readCurrent, rotate]);
 
   const api = useCallback(
     async <TResponse,>(path: string, options: AuthApiOptions = {}) => {
-      const currentTokens = tokensRef.current;
       const { skipAuth, ...requestOptions } = options;
-
+      const expected = tokensRef.current;
+      const send = (token?: string) => request<TResponse>(path, { ...requestOptions, token });
+      if (skipAuth) return send();
+      const assertSameSession = () => {
+        if (sessionKey(readCurrent()) !== accountSession) throw new SessionExpiredError();
+      };
+      assertSameSession();
+      let result: TResponse;
       try {
-        return await request<TResponse>(path, {
-          ...requestOptions,
-          token: skipAuth ? undefined : currentTokens?.accessToken,
-        });
+        result = await send(expected?.accessToken);
       } catch (error) {
-        const shouldRefresh =
-          !skipAuth &&
-          error instanceof ApiError &&
-          error.status === 401 &&
-          Boolean(tokensRef.current?.refreshToken);
-
-        if (!shouldRefresh) {
-          throw error;
+        assertSameSession();
+        if (!(error instanceof ApiError) || error.status !== 401 || !expected) throw error;
+        const next = await refreshSession(expected);
+        assertSameSession();
+        try {
+          result = await send(next.accessToken);
+        } catch (retryError) {
+          assertSameSession();
+          if (retryError instanceof ApiError && retryError.status === 401 &&
+              readCurrent()?.refreshToken === next.refreshToken) {
+            clearSession("Сессия истекла. Войдите снова.");
+          }
+          throw retryError;
         }
-
-        const nextTokens = await refreshSession();
-        return request<TResponse>(path, {
-          ...requestOptions,
-          token: nextTokens.accessToken,
-        });
       }
+      assertSameSession();
+      return result;
     },
-    [refreshSession],
-  );
-
-  const login = useCallback(
-    async ({ email, password }: AuthCredentials) => {
-      const payload = await request<AuthTokensResponse>("/auth/login", {
-        method: "POST",
-        body: { email, password },
-      });
-      setTokens(normalizeTokens(payload));
-      setSessionMessage("");
-    },
-    [setTokens],
+    [accountSession, clearSession, readCurrent, refreshSession],
   );
 
   const logout = useCallback(async () => {
-    const refreshToken = tokensRef.current?.refreshToken;
+    const current = readCurrent();
+    if (sessionKey(current) !== accountSession) {
+      tokensRef.current = current;
+      setTokensState(current);
+      return;
+    }
+    const refreshToken = current?.refreshToken;
     setTokens(null);
     setSessionMessage("");
 
@@ -169,10 +162,29 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
         // Local logout should still win if the network is already gone.
       }
     }
-  }, [setTokens]);
+  }, [accountSession, readCurrent, setTokens]);
+
+  // Follow logins, logouts and token rotations made in other tabs.
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== null && event.key !== TOKEN_STORAGE_KEY) {
+        return;
+      }
+      const stored = getStoredTokens();
+      tokensRef.current = stored;
+      setTokensState(stored);
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
   useEffect(() => {
     if (!tokensRef.current?.refreshToken) {
+      setBootstrapping(false);
+      return;
+    }
+    // A still-valid access token needs no refresh on page load.
+    if (isFresh(tokensRef.current.accessToken)) {
       setBootstrapping(false);
       return;
     }
@@ -193,19 +205,29 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
     }
 
     const delay = Math.max(expiresAt - Date.now() - 60_000, 5_000);
-    const timer = window.setTimeout(() => {
-      refreshSession().catch(() => {});
-    }, delay);
-
-    return () => window.clearTimeout(timer);
-  }, [refreshSession, tokens]);
+    let active = true;
+    const renew = async () => {
+      try {
+        await refreshSession(tokens);
+      } catch {
+        if (active && readCurrent()?.refreshToken === tokens.refreshToken) {
+          timer = window.setTimeout(renew, REFRESH_RETRY_MS);
+        }
+      }
+    };
+    let timer = window.setTimeout(renew, delay);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [readCurrent, refreshSession, tokens]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       api,
       bootstrapping,
       isAuthenticated: Boolean(tokens),
-      login,
+      role: tokens ? decodeJwtRole(tokens.accessToken) : null,
       logout,
       refreshSession,
       sessionMessage,
@@ -214,7 +236,6 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
     [
       api,
       bootstrapping,
-      login,
       logout,
       refreshSession,
       sessionMessage,
@@ -222,7 +243,7 @@ export function AuthProvider({ children }: PropsWithChildren): JSX.Element {
     ],
   );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider key={accountSession} value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth(): AuthContextValue {
@@ -239,4 +260,10 @@ function normalizeTokens(payload: AuthTokensResponse): AuthTokens {
     accessToken: payload.access_token,
     refreshToken: payload.refresh_token,
   };
+}
+
+/** True when the access token is valid for at least another minute. */
+function isFresh(accessToken: string): boolean {
+  const expiresAt = decodeJwtExpiration(accessToken);
+  return expiresAt !== null && expiresAt - Date.now() > 60_000;
 }

@@ -8,6 +8,8 @@ export type ApiRequestOptions = Omit<RequestInit, "body" | "headers"> & {
 };
 
 type ErrorPayload = {
+  code?: string;
+  track_numbers?: string[];
   error?:
     | {
         code?: string;
@@ -23,6 +25,7 @@ export class ApiError extends Error {
   status?: number;
   code?: string;
   fields?: Record<string, string>;
+  trackNumbers?: string[];
 
   constructor(
     message: string,
@@ -30,6 +33,7 @@ export class ApiError extends Error {
       status?: number;
       code?: string;
       fields?: Record<string, string>;
+      trackNumbers?: string[];
     } = {},
   ) {
     super(message);
@@ -37,6 +41,7 @@ export class ApiError extends Error {
     this.status = details.status;
     this.code = details.code;
     this.fields = details.fields;
+    this.trackNumbers = details.trackNumbers;
   }
 }
 
@@ -74,7 +79,8 @@ export async function request<TResponse = unknown>(
 
     throw new ApiError(message || "Ошибка запроса", {
       status: response.status,
-      code: typeof error === "object" ? error?.code : undefined,
+      code: errorPayload?.code ?? (typeof error === "object" ? error?.code : undefined),
+      trackNumbers: errorPayload?.track_numbers,
       fields: typeof error === "object" ? error?.fields : undefined,
     });
   }
